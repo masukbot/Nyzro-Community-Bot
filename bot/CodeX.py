@@ -19,6 +19,7 @@ from core.zyrox import zyrox
 from utils.Tools import *
 from utils.config import *
 from utils.emoji import SUCCESS, ERROR, TICK, CROSS, REACTION_TEST_EMOJIS
+from utils.sync_emojis import run_sync
 
 import jishaku
 import cogs
@@ -85,6 +86,10 @@ async def on_ready():
     print(f"Logged in as: {client.user}")
     print(f"Connected to: {len(client.guilds)} guilds")
     print(f"Connected to: {len(client.users)} users")
+
+    # Sync application emojis on startup
+    await run_sync(TOKEN)
+
     async def sync_commands():
         try:
             synced = await client.tree.sync()
@@ -299,10 +304,17 @@ fastapi_app = create_app()
 fastapi_app.state.bot = client
 set_bot(client)
 
+API_ENABLED = os.getenv("API_ENABLED", "true").strip().lower() == "true"
+API_PORT = int(os.getenv("API_PORT", "8000"))
+
 def run_api():
-    uvicorn.run(fastapi_app, host='0.0.0.0', port=8000, log_level="warning")
+    uvicorn.run(fastapi_app, host='0.0.0.0', port=API_PORT, log_level="warning")
 
 def keep_alive():
+    if not API_ENABLED:
+        print(f"\033[33m◈ API Server: Disabled via API_ENABLED=false\033[0m")
+        return
+    print(f"\033[32m◈ API Server: Starting on port {API_PORT}\033[0m")
     server = Thread(target=run_api, daemon=True)
     server.start()
 

@@ -1,3 +1,4 @@
+import os
 import random
 import discord
 from utils.emoji import FORWARD, ICONLOAD, ICONS_MUSIC, ICONS_PAUSE, ICONS_WARNING_ALT1, MUSICSTOP_ICONS, MUSIC_ALT1, MUTE, REWIND, REWIND_ALT1, SHUFFLE, SKIP, TICK, WARNING, ZMUSICPAUSE, ZPLUS, ZUNMUTE
@@ -377,7 +378,17 @@ class Music(commands.Cog):
                     pass
 
     async def connect_nodes(self) -> None:
-        nodes = [wavelink.Node(uri="https://lava-v4.ajieblogs.eu.org", password="https://dsc.gg/ajidevserver")]
+        host = os.getenv("LAVALINK_HOST", "lava-v4.ajieblogs.eu.org")
+        password = os.getenv("LAVALINK_PASSWORD", "https://dsc.gg/ajidevserver")
+        secure = os.getenv("LAVALINK_SECURE", "true").strip().lower() == "true"
+        port = os.getenv("LAVALINK_PORT", "").strip()
+
+        if secure:
+            uri = f"https://{host}"
+        else:
+            uri = f"http://{host}:{port}" if port else f"http://{host}"
+
+        nodes = [wavelink.Node(uri=uri, password=password)]
         await wavelink.Pool.connect(nodes=nodes, client=self.client, cache_capacity=None)
 
 
