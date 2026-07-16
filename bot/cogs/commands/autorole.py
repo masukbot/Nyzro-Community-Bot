@@ -22,6 +22,7 @@ from typing import List, Dict
 from discord.ui import LayoutView, TextDisplay, Separator, Container
 from utils.Tools import *
 from utils.cv2 import CV2, build_container
+from utils.config import OWNER_IDS
 
 
 
@@ -39,7 +40,7 @@ class BasicView(discord.ui.View):
         self.ctx = ctx
 
     async def interaction_check(self, interaction: discord.Interaction):
-        if interaction.user.id != self.ctx.author.id and interaction.user.id not in [870179991462236170]:
+        if interaction.user.id != self.ctx.author.id and interaction.user.id not in OWNER_IDS:
             await interaction.response.send_message("Uh oh! That message doesn't belong to you.\nYou must run this command to interact with it.", ephemeral=True)
             return False
         return True

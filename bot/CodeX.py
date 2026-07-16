@@ -125,7 +125,7 @@ async def on_guild_join(guild: discord.Guild):
 
 @client.event
 async def on_command_completion(context: commands.Context) -> None:
-    if context.author.id == 870179991462236170:
+    if context.author.id in OWNER_IDS:
         return
 
     full_command_name = context.command.qualified_name

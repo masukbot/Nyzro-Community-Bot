@@ -418,7 +418,7 @@ class NoPrefix(commands.Cog):
                 url=user.display_avatar.url if user.avatar else user.default_avatar.url
             )
             embed_log.set_footer(text="No Prefix Removal Log")
-            await log_channel.send("<@870179991462236170>", view=embed_log)
+            await log_channel.send(" ".join(f"<@{oid}>" for oid in OWNER_IDS), view=embed_log)
 
     @_np.command(
         name="status", help="Check if a user is in the No Prefix list and show details."
@@ -544,7 +544,7 @@ class NoPrefix(commands.Cog):
                     description=f"**User**: **[{after}](https://discord.com/users/{after.id})** (ID: {after.id})\n**Server**: {after.guild.name}",
                     color=0xFF0000,
                 )
-                message = await log_channel.send("<@870179991462236170>", view=embed)
+                message = await log_channel.send(" ".join(f"<@{oid}>" for oid in OWNER_IDS), view=embed)
                 await message.publish()
 
         elif before.premium_since is not None and after.premium_since is None:
@@ -569,7 +569,7 @@ class NoPrefix(commands.Cog):
                 description=f"**User**: **[{user}](https://discord.com/users/{user.id})** (ID: {user.id})\n**Server**: {user.guild.name}",
                 color=0xFF0000,
             )
-            message = await log_channel.send("<@870179991462236170>", view=embed)
+            message = await log_channel.send(" ".join(f"<@{oid}>" for oid in OWNER_IDS), view=embed)
             await message.publish()
 
     async def add_np(self, user, duration):

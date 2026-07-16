@@ -24,7 +24,7 @@ import aiosqlite
 from typing import Optional
 from utils import Paginator, DescriptionEmbedPaginator, FieldPagePaginator, TextPaginator
 from utils.Tools import *
-from utils.config import OWNER_IDS
+from utils.config import OWNER_IDS, BOT_OWNER_IDS
 from utils.emoji import BOOSTS, DISCORD_BADGE_EMOJIS, LOADINGRED, NITRO_BOOST, TICK, ZWARNING
 from core import Cog, zyrox, Context
 import sqlite3
@@ -32,7 +32,7 @@ import os
 import requests
 import numpy as np
 from io import BytesIO
-from utils.config import OWNER_IDS
+from utils.config import OWNER_IDS, BOT_OWNER_IDS
 from discord.errors import Forbidden
 from discord import Embed
 from discord.ui import Button, View
@@ -42,7 +42,7 @@ from utils.config import *
 
 
 # --- Configuration & Helpers ---
-OWNER_IDS = [1258831252748894436] 
+# OWNER_IDS and BOT_OWNER_IDS are imported from utils.config — edit .env to change them
 
 # Your custom bot badges, including Family and Developer
 BADGE_URLS = {
@@ -138,7 +138,7 @@ class Owner(commands.Cog):
         self.np_cache = []
         self.db_path = 'db/np.db'
         self.stop_tour = False
-        self.bot_owner_ids = [870179991462236170,1432771000629596225,1382744437049790495]
+        self.bot_owner_ids = BOT_OWNER_IDS
         self.client.loop.create_task(self.setup_database())
         self.client.loop.create_task(self.load_staff())
         

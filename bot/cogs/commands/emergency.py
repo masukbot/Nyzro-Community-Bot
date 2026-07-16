@@ -19,6 +19,7 @@ from discord.ext import commands
 import aiosqlite
 from utils.Tools import *
 from utils.cv2 import CV2, build_container
+from utils.config import OWNER_IDS_STR
 
 
 class EmergencyRestoreConfirmView(LayoutView):
@@ -419,9 +420,7 @@ class Emergency(commands.Cog):
     @commands.cooldown(1, 4, commands.BucketType.user)
     @commands.guild_only()
     async def enable(self, ctx):
-        if ctx.author.id != ctx.guild.owner_id and str(ctx.author.id) not in [
-            "870179991462236170"
-        ]:
+        if ctx.author.id != ctx.guild.owner_id and str(ctx.author.id) not in OWNER_IDS_STR:
             return await ctx.reply(view=EnableErrorView())
         dangerous_perms = [
             "administrator",
@@ -460,9 +459,7 @@ class Emergency(commands.Cog):
     @commands.cooldown(1, 4, commands.BucketType.user)
     @commands.guild_only()
     async def disable(self, ctx):
-        if ctx.author.id != ctx.guild.owner_id and str(ctx.author.id) not in [
-            "870179991462236170"
-        ]:
+        if ctx.author.id != ctx.guild.owner_id and str(ctx.author.id) not in OWNER_IDS_STR:
             return await ctx.reply(view=DisableErrorView())
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
@@ -626,7 +623,7 @@ class Emergency(commands.Cog):
     async def emergencysituation(self, ctx):
         if not await self.is_guild_owner_or_authorised(ctx) and str(
             ctx.author.id
-        ) not in ["870179991462236170"]:
+        ) not in OWNER_IDS_STR:
             return await ctx.reply(view=EmergencySituationErrorView("access"))
 
         proc_msg = await ctx.reply(
@@ -746,9 +743,7 @@ class Emergency(commands.Cog):
     @commands.guild_only()
     @commands.bot_has_permissions(manage_roles=True)
     async def emergencyrestore(self, ctx):
-        if ctx.author.id != ctx.guild.owner_id and str(ctx.author.id) not in [
-            "870179991462236170"
-        ]:
+        if ctx.author.id != ctx.guild.owner_id and str(ctx.author.id) not in OWNER_IDS_STR:
             return await ctx.reply(view=EmergencyRestoreAccessErrorView())
 
         async with aiosqlite.connect(self.db_path) as db:

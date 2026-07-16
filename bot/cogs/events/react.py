@@ -15,6 +15,7 @@
 import discord
 from utils.emoji import ACTIVE_DEVELOPER, BLACKCROWN, MINGLE, STAFF
 from discord.ext import commands
+from utils.config import OWNER_IDS
 import asyncio
 
 class React(commands.Cog):
@@ -29,17 +30,19 @@ class React(commands.Cog):
         for owner in self.bot.owner_ids:
             if f"<@{owner}>" in message.content:
                 try:
-                    if owner == 870179991462236170:
+                    # Primary owner (first in OWNER_IDS) gets an extra emoji
+                    if owner == OWNER_IDS[0]:
                         emojis = [
                             BLACKCROWN,
                             ACTIVE_DEVELOPER,
                             STAFF,
-                            MINGLE                         ]
+                            MINGLE,
+                        ]
                     else:
                         emojis = [
                             BLACKCROWN,
                             ACTIVE_DEVELOPER,
-                            STAFF
+                            STAFF,
                         ]
 
                     for emoji in emojis:

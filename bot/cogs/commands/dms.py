@@ -16,11 +16,7 @@ import discord
 from discord.ui import LayoutView, TextDisplay, Separator, Container, Button, ActionRow
 from discord.ext import commands
 from utils.cv2 import CV2, build_container
-
-authorized_staff_ids = [
-    1263404140965396555,
-    767979794411028491
-]
+from utils.config import STAFF_IDS
 
 
 class SuccessView(LayoutView):
@@ -88,7 +84,7 @@ class StaffDMCog(commands.Cog):
 
     @commands.command(name="dmstaff")
     async def dm_staff(self, ctx, member: discord.Member, *, message: str):
-        if ctx.author.id not in authorized_staff_ids:
+        if ctx.author.id not in STAFF_IDS:
             view = PermissionErrorView()
             await ctx.reply(view=view)
             return

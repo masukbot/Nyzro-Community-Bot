@@ -19,6 +19,7 @@ import os
 from utils.Tools import *
 from utils.cv2 import CV2
 from discord.ui import TextDisplay, Separator, ActionRow, LayoutView, Container
+from utils.config import OWNER_IDS_STR
 
 # Database setup
 db_folder = "db"
@@ -30,7 +31,7 @@ class Nightmode(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.bot.loop.create_task(self.initialize_db())
-        self.ricky = ["870179991462236170", "767979794411028491"]
+        self.ricky = OWNER_IDS_STR
         self.color = 0xFF0000
 
     async def initialize_db(self):
