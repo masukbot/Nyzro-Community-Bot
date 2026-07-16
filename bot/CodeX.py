@@ -334,7 +334,7 @@ def keep_alive():
 
 keep_alive()
 
-# --- ngrok HTTPS Tunnel (for Dashboard API) ---
+# --- Cloudflare Tunnel (HTTPS for API) ---
 from utils.tunnel import start_tunnel
 start_tunnel()
 

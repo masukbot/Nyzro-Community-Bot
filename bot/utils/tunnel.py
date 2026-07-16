@@ -13,38 +13,46 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 """
-HTTPS Tunnel for the ZyroX API using pyngrok.
+HTTPS Tunnel for the ZyroX API — Cloudflare Tunnel via pycloudflared.
 
-pyngrok is a pure Python package that automatically downloads the ngrok binary
-on first run — no system installs, works on Pterodactyl out of the box.
+Zero manual installs. Just:
+  1. pip install pycloudflared  (already in requirements.txt)
+  2. Get your tunnel token from the Cloudflare dashboard (browser only, no CLI)
+  3. Set CF_TUNNEL_TOKEN in .env
 
-With a free ngrok account + a reserved static domain you get the SAME URL on
-every restart (free tier gives you 1 static domain).
+That's it. The cloudflared binary is downloaded automatically on first run.
 
 ──────────────────────────────────────────────────────────────────────────────
-One-time setup (do this once)
+How to get your CF_TUNNEL_TOKEN (browser only, no CLI needed)
 ──────────────────────────────────────────────────────────────────────────────
-1. Sign up for a free account at https://ngrok.com
-2. Copy your authtoken from https://dashboard.ngrok.com/get-started/your-authtoken
-3. Reserve a free static domain at https://dashboard.ngrok.com/domains
-   (looks like: xxxx-xxxx-xxxx.ngrok-free.app)
-4. Add these two vars to your .env:
-       NGROK_AUTHTOKEN  = your_token_here
-       NGROK_DOMAIN     = xxxx-xxxx-xxxx.ngrok-free.app
-5. Set TUNNEL_ENABLED = "true"
+1. Go to https://one.dash.cloudflare.com
+2. Networks → Tunnels → Create a tunnel
+3. Choose "Cloudflared" as connector type
+4. Give it a name (e.g. zyrox-api) and click Save
+5. On the "Install connector" step, find the token in the command shown:
+      cloudflared tunnel run --token <YOUR_TOKEN_HERE>
+   Copy just the token string.
+6. Go to "Published Application Routes" tab → Add a Published Application Routes:
+      Subdomain: zyrox-api   Domain: yourdomain.com   Service: http://localhost:8000
+   (Or use any domain you have on Cloudflare)
+7. Paste the token into your .env:
+      CF_TUNNEL_TOKEN = "eyJhIjoiX..."
+      CF_TUNNEL_URL   = "https://zyrox-api.yourdomain.com"
 
-That's it — pyngrok handles the binary download automatically on first start.
+That's the permanent URL — never changes between restarts.
+Unlimited bandwidth, unlimited requests, free.
 ──────────────────────────────────────────────────────────────────────────────
 """
 
 import os
 import time
 import threading
+import subprocess
 
 # ── env vars ──────────────────────────────────────────────────────────────────
-TUNNEL_ENABLED  = os.getenv("TUNNEL_ENABLED", "true").strip().lower() == "true"
-NGROK_AUTHTOKEN = os.getenv("NGROK_AUTHTOKEN", "").strip()
-NGROK_DOMAIN    = os.getenv("NGROK_DOMAIN", "").strip()   # e.g. xxxx.ngrok-free.app
+TUNNEL_ENABLED = os.getenv("TUNNEL_ENABLED", "true").strip().lower() == "true"
+CF_TUNNEL_TOKEN = os.getenv("CF_TUNNEL_TOKEN", "").strip()   # token from Cloudflare dashboard
+CF_TUNNEL_URL   = os.getenv("CF_TUNNEL_URL", "").strip()     # e.g. https://api.yourdomain.com
 API_PORT        = int(os.getenv("API_PORT", "8000"))
 
 # ── colours ───────────────────────────────────────────────────────────────────
@@ -55,99 +63,120 @@ _RED    = "\033[31m"
 _RESET  = "\033[0m"
 
 
-def _run_ngrok(port: int, domain: str) -> None:
+def _get_binary() -> str | None:
     """
-    Blocking loop: opens an ngrok tunnel and keeps it alive.
-    Restarts automatically if the connection drops.
+    Return path to cloudflared binary.
+    pycloudflared downloads it automatically on first call.
     """
     try:
-        from pyngrok import ngrok, conf, exception as ngrok_exc
+        from pycloudflared import try_cloudflare   # noqa: F401 — triggers download
+        import pycloudflared as _pcf
+        # pycloudflared stores the binary path in this attribute after download
+        path = getattr(_pcf, "cloudflared_path", None)
+        if path and os.path.isfile(path):
+            return path
+        # Some versions expose it differently — walk the package dir
+        pkg_dir = os.path.dirname(_pcf.__file__)
+        for fname in os.listdir(pkg_dir):
+            if "cloudflared" in fname.lower() and os.access(os.path.join(pkg_dir, fname), os.X_OK):
+                return os.path.join(pkg_dir, fname)
     except ImportError:
-        print(
-            f"{_RED}◈ Tunnel: pyngrok is not installed.\n"
-            f"  Run: pip install pyngrok{_RESET}"
-        )
-        return
+        pass
 
-    # Set the authtoken (pyngrok persists it for future runs)
-    if NGROK_AUTHTOKEN:
-        conf.get_default().auth_token = NGROK_AUTHTOKEN
+    # Last resort: system PATH
+    import shutil
+    return shutil.which("cloudflared")
 
+
+def _run_tunnel(binary: str, token: str, port: int, public_url: str) -> None:
+    """
+    Blocking loop — runs:
+      cloudflared tunnel --no-autoupdate run --token <token>
+    Restarts automatically if the process exits.
+    """
+    cmd = [
+        binary,
+        "tunnel",
+        "--no-autoupdate",
+        "--url", f"http://localhost:{port}",
+        "run",
+        "--token", token,
+    ]
+
+    first_run = True
     while True:
-        tunnel = None
+        if first_run:
+            print(f"{_CYAN}◈ Tunnel: connecting to Cloudflare…{_RESET}")
+            first_run = False
+        else:
+            print(f"{_YELLOW}◈ Tunnel: reconnecting…{_RESET}")
+
         try:
-            options = {"addr": port, "proto": "http"}
-            if domain:
-                options["hostname"] = domain  # use reserved static domain
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
 
-            # NOTE: request_header_add is NOT supported via the pyngrok API.
-            # Instead the FastAPI middleware injects the ngrok-skip-browser-warning
-            # header on every response, which achieves the same result.
+            announced = False
+            for line in proc.stdout:
+                line = line.rstrip()
+                if not line:
+                    continue
 
-            tunnel = ngrok.connect(**options)
-            public_url = tunnel.public_url.replace("http://", "https://")
+                # Only surface important lines — suppress the noisy info spam
+                low = line.lower()
+                if any(k in low for k in ("error", "warn", "registered", "connected", "failed", "unable")):
+                    print(f"{_CYAN}  [cloudflared] {line}{_RESET}")
 
-            print(f"{_GREEN}◈ Tunnel: API is live at  {public_url}{_RESET}")
-            print(f"{_CYAN}  ↳ set NEXT_PUBLIC_API_URL={public_url}/api/v1 in your dashboard .env{_RESET}")
+                # Announce the live URL once the tunnel is up
+                if not announced and ("registered tunnel connection" in low or "connection registered" in low):
+                    announced = True
+                    if public_url:
+                        print(f"{_GREEN}◈ Tunnel: API is live at  {public_url}{_RESET}")
+                        print(f"{_CYAN}  ↳ NEXT_PUBLIC_API_URL = {public_url}/api/v1{_RESET}")
+                    else:
+                        print(f"{_GREEN}◈ Tunnel: connected — check CF_TUNNEL_URL in .env for your public URL{_RESET}")
 
-            # Block until the tunnel process exits
-            ngrok.get_ngrok_process().proc.wait()
+            proc.wait()
+            code = proc.returncode
 
-        except ngrok_exc.PyngrokNgrokHTTPError as e:
-            # Catches auth errors (401) and other ngrok HTTP-level errors
-            msg = str(e).lower()
-            if "401" in msg or "auth" in msg or "token" in msg:
-                print(
-                    f"{_RED}◈ Tunnel: invalid NGROK_AUTHTOKEN.\n"
-                    f"  Get your token from https://dashboard.ngrok.com/get-started/your-authtoken{_RESET}"
-                )
-                return  # no point retrying with a bad token
-            print(f"{_RED}◈ Tunnel: ngrok HTTP error — {e}{_RESET}")
+        except FileNotFoundError:
+            print(f"{_RED}◈ Tunnel: binary not found at '{binary}' — try: pip install pycloudflared{_RESET}")
+            return
+        except Exception as exc:
+            print(f"{_RED}◈ Tunnel: unexpected error — {exc}{_RESET}")
+            code = -1
 
-        except ngrok_exc.PyngrokNgrokError as e:
-            print(f"{_RED}◈ Tunnel: ngrok error — {e}{_RESET}")
-
-        except Exception as e:
-            print(f"{_RED}◈ Tunnel: unexpected error — {e}{_RESET}")
-
-        finally:
-            # Clean up before retrying
-            try:
-                if tunnel:
-                    ngrok.disconnect(tunnel.public_url)
-            except Exception:
-                pass
-            try:
-                ngrok.kill()
-            except Exception:
-                pass
-
-        print(f"{_YELLOW}◈ Tunnel: connection lost, restarting in 5 s…{_RESET}")
+        print(f"{_YELLOW}◈ Tunnel: exited (code {code}), restarting in 5 s…{_RESET}")
         time.sleep(5)
 
 
 def start_tunnel() -> None:
     """
-    Start the ngrok HTTPS tunnel in a background daemon thread.
+    Start the Cloudflare Tunnel in a background daemon thread.
     Called from CodeX.py after keep_alive().
     """
     if not TUNNEL_ENABLED:
         print(f"{_YELLOW}◈ Tunnel: disabled via TUNNEL_ENABLED=false{_RESET}")
         return
 
-    if not NGROK_AUTHTOKEN:
+    if not CF_TUNNEL_TOKEN:
         print(
-            f"{_YELLOW}◈ Tunnel: NGROK_AUTHTOKEN is not set — tunnel skipped.\n"
-            f"  Get your token from https://dashboard.ngrok.com/get-started/your-authtoken{_RESET}"
+            f"{_YELLOW}◈ Tunnel: CF_TUNNEL_TOKEN is not set — tunnel skipped.\n"
+            f"  Get your token from https://one.dash.cloudflare.com → Networks → Tunnels{_RESET}"
         )
         return
 
-    if not NGROK_DOMAIN:
+    binary = _get_binary()
+    if not binary:
         print(
-            f"{_YELLOW}◈ Tunnel: NGROK_DOMAIN is not set — a random URL will be used (changes each restart).\n"
-            f"  Reserve a free static domain at https://dashboard.ngrok.com/domains{_RESET}"
+            f"{_RED}◈ Tunnel: cloudflared binary not found.\n"
+            f"  Make sure pycloudflared is installed: pip install pycloudflared{_RESET}"
         )
+        return
 
-    print(f"{_CYAN}◈ Tunnel: starting ngrok tunnel on port {API_PORT}…{_RESET}")
-    t = threading.Thread(target=_run_ngrok, args=(API_PORT, NGROK_DOMAIN), daemon=True)
+    print(f"{_CYAN}◈ Tunnel: cloudflared binary ready — starting tunnel on port {API_PORT}…{_RESET}")
+    t = threading.Thread(target=_run_tunnel, args=(binary, CF_TUNNEL_TOKEN, API_PORT, CF_TUNNEL_URL), daemon=True)
     t.start()
