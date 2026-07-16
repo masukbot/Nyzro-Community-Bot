@@ -1,3 +1,19 @@
+/**
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║                                                                  ║
+ * ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+ * ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+ * ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+ * ║                                                                  ║
+ * ║           © 2026 CodeX Devs — All Rights Reserved               ║
+ * ║                                                                  ║
+ * ║   discord  ──  https://discord.gg/codexdev                      ║
+ * ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+ * ║   github   ──  https://github.com/RayExo                        ║
+ * ║                                                                  ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ */
+
 import React from "react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectOption } from "@/components/ui/select";

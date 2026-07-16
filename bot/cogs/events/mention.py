@@ -1,3 +1,17 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║                                                                  ║
+# ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+# ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+# ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+# ║                                                                  ║
+# ║            © 2026 CodeX Devs — All Rights Reserved              ║
+# ║                                                                  ║
+# ║   discord  ──  https://discord.gg/codexdev                      ║
+# ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+# ║   github   ──  https://github.com/RayExo                        ║
+# ║                                                                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 from utils import getConfig
 from utils.config import BotName
 import discord

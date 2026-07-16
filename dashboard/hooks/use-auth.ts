@@ -1,3 +1,19 @@
+/**
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║                                                                  ║
+ * ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+ * ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+ * ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+ * ║                                                                  ║
+ * ║           © 2026 CodeX Devs — All Rights Reserved               ║
+ * ║                                                                  ║
+ * ║   discord  ──  https://discord.gg/codexdev                      ║
+ * ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+ * ║   github   ──  https://github.com/RayExo                        ║
+ * ║                                                                  ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ */
+
 import { useState, useEffect } from "react";
 
 export function useAuth() {

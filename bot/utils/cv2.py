@@ -1,3 +1,17 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║                                                                  ║
+# ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+# ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+# ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+# ║                                                                  ║
+# ║            © 2026 CodeX Devs — All Rights Reserved              ║
+# ║                                                                  ║
+# ║   discord  ──  https://discord.gg/codexdev                      ║
+# ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+# ║   github   ──  https://github.com/RayExo                        ║
+# ║                                                                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 """
 Shared CV2 (Component V2) utilities for the bot.
 Provides a helper to build Container objects since Container()

@@ -1,3 +1,17 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║                                                                  ║
+# ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+# ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+# ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+# ║                                                                  ║
+# ║            © 2026 CodeX Devs — All Rights Reserved              ║
+# ║                                                                  ║
+# ║   discord  ──  https://discord.gg/codexdev                      ║
+# ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+# ║   github   ──  https://github.com/RayExo                        ║
+# ║                                                                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 import os
 from typing import Optional, TYPE_CHECKING
 from fastapi import HTTPException, Depends, Security

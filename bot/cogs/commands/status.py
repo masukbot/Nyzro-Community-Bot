@@ -1,3 +1,17 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║                                                                  ║
+# ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+# ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+# ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+# ║                                                                  ║
+# ║            © 2026 CodeX Devs — All Rights Reserved              ║
+# ║                                                                  ║
+# ║   discord  ──  https://discord.gg/codexdev                      ║
+# ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+# ║   github   ──  https://github.com/RayExo                        ║
+# ║                                                                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 import discord
 from utils.emoji import DND, ICON_BROWSER, IDLE, LOADING_ALT1, MOBILE, OFFLINE, ONLINE, PC
 from discord.ext import commands

@@ -1,3 +1,17 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║                                                                  ║
+# ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+# ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+# ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+# ║                                                                  ║
+# ║            © 2026 CodeX Devs — All Rights Reserved              ║
+# ║                                                                  ║
+# ║   discord  ──  https://discord.gg/codexdev                      ║
+# ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+# ║   github   ──  https://github.com/RayExo                        ║
+# ║                                                                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 import os
 import subprocess
 # os.system("")
@@ -319,6 +333,10 @@ def keep_alive():
     server.start()
 
 keep_alive()
+
+# --- ngrok HTTPS Tunnel (for Dashboard API) ---
+from utils.tunnel import start_tunnel
+start_tunnel()
 
 # --- Main Bot Execution ---
 async def main():

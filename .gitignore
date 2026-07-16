@@ -49,6 +49,7 @@ build/
 
 # Ignore node_modules
 node_modules/
+package-lock.json
 
 # Ignore Next.js build output
 .next/

@@ -1,6 +1,21 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║                                                                  ║
+# ║   ░█▀▀░█▀█░█▀▄░█▀▀░█░█   ░█▀▄░█▀▀░█░█░█▀▀                     ║
+# ║   ░█░░░█░█░█░█░█▀▀░▄▀▄   ░█░█░█▀▀░▀▄▀░▀▀█                     ║
+# ║   ░▀▀▀░▀▀▀░▀▀░░▀▀▀░▀░▀   ░▀▀░░▀▀▀░░▀░░▀▀▀                     ║
+# ║                                                                  ║
+# ║            © 2026 CodeX Devs — All Rights Reserved              ║
+# ║                                                                  ║
+# ║   discord  ──  https://discord.gg/codexdev                      ║
+# ║   youtube  ──  https://youtube.com/@CodeXDevs                   ║
+# ║   github   ──  https://github.com/RayExo                        ║
+# ║                                                                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import os
 import time
 import json
 import logging
@@ -66,18 +81,35 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
 
+    # Build allowed origins from env + hardcoded fallbacks
+    _extra_origins = [
+        o.strip()
+        for o in os.getenv("CORS_ORIGINS", "").split(",")
+        if o.strip()
+    ]
+    _allowed_origins = list(dict.fromkeys([
+        "http://localhost:3000",
+        "https://localhost:3000",
+        "https://your-vercel-url-here.vercel.app",
+        *_extra_origins,
+    ]))
+
     # Enable CORS for Next.js dashboard
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3000",
-            "https://localhost:3000",
-            # Add production domain here later
-        ],
+        allow_origins=_allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Middleware: add ngrok-skip-browser-warning header to every response
+    # (prevents ngrok's interstitial warning page from breaking CORS preflight)
+    @app.middleware("http")
+    async def add_ngrok_header(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["ngrok-skip-browser-warning"] = "true"
+        return response
 
     # Register Routers
     app.include_router(bot.router, prefix="/api/v1/bot", tags=["Bot"])
