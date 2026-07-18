@@ -10,7 +10,9 @@
 ```
 
 <h3>ZyroX Bot — Python Discord Bot + FastAPI Backend</h3>
-  <a href="https://nexiohost.in"><img src="https://img.shields.io/badge/⭐%20PREMIUM%20HOSTING-NexioHost-FFD700?style=for-the-badge&labelColor=1a1a2e&color=FFD700&logoColor=FFD700"/></a>
+
+<a href="https://nexiohost.in"><img src="https://img.shields.io/badge/⭐%20PREMIUM%20HOSTING-NexioHost-FFD700?style=for-the-badge&labelColor=1a1a2e&color=FFD700&logoColor=FFD700"/></a>
+
 <p>
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white"/></a>
   <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white"/></a>
@@ -29,7 +31,7 @@
 
 ## ✦ Overview
 
-This folder contains the ZyroX Discord bot built on `discord.py v2` alongside a `FastAPI` backend that powers the web dashboard. It handles all server moderation, music, leveling, mini-games, and utility features — all from a single `python CodeX.py` command.
+This folder contains the ZyroX Discord bot built on `discord.py v2` alongside a `FastAPI` backend that powers the web dashboard. Everything runs from a single `python CodeX.py` command.
 
 ```
 bot/
@@ -44,7 +46,7 @@ bot/
 │   └── zyrox/             Core ZyroX feature cogs
 ├── core/                  Bot client, context, cog base classes
 ├── games/                 Standalone game logic + button views
-├── utils/                 Emoji, tools, sync, ngrok tunnel
+├── utils/                 Emoji, tools, sync, Cloudflare tunnel
 ├── assets/                Fonts, backgrounds, GIFs
 └── CodeX.py               Entry point
 ```
@@ -132,7 +134,8 @@ bot/
 - Jishaku eval support
 - Application emoji auto-sync
 - Slash + prefix commands
-- ngrok HTTPS tunnel (pyngrok — no system install)
+- Cloudflare Tunnel via pycloudflared — zero system installs, unlimited traffic
+- Single `OWNER_IDS` env var controls all permission checks
 - CodeX Devs watermark on every source file
 
 </td>
@@ -148,7 +151,7 @@ bot/
 | Python 3.10+ | — |
 | Lavalink v4 node | for music features |
 | Discord bot token | from Developer Portal |
-| ngrok free account | for HTTPS tunnel |
+| Cloudflare account (free) | for HTTPS tunnel — browser setup only |
 
 ---
 
@@ -170,18 +173,21 @@ pip install -r requirements.txt
 
 ### 2 — Configure environment
 
-Create a `.env` file in this folder:
+Create a `.env` file (copy from `.env.example`):
 
 ```env
 # ── Core ──────────────────────────────────────────────────────────
 TOKEN              = your_discord_bot_token
 brand_name         = 'ZyroX'
 
+# ── Owner IDs (comma-separated — no code changes needed) ──────────
+OWNER_IDS          = 870179991462236170,767979794411028491
+
 # ── Lavalink ──────────────────────────────────────────────────────
-LAVALINK_HOST      = "lava-v4.ajieblogs.eu.org"
+LAVALINK_HOST      = "your-lavalink-host"
 LAVALINK_PASSWORD  = "your_password"
-LAVALINK_SECURE    = "true"     # true = HTTPS (no port needed)
-LAVALINK_PORT      = ""         # only needed when LAVALINK_SECURE=false
+LAVALINK_SECURE    = "true"
+LAVALINK_PORT      = ""
 
 # ── Emoji Sync ────────────────────────────────────────────────────
 EMOJI_SYNC         = "true"
@@ -190,12 +196,12 @@ EMOJI_SYNC         = "true"
 API_ENABLED        = "true"
 API_PORT           = "8000"
 DASHBOARD_API_KEY  = "change_this_to_a_strong_secret"
-CORS_ORIGINS       = ""         # extra allowed origins, comma-separated
+CORS_ORIGINS       = ""
 
-# ── HTTPS Tunnel (ngrok) ──────────────────────────────────────────
+# ── Cloudflare Tunnel ─────────────────────────────────────────────
 TUNNEL_ENABLED     = "true"
-NGROK_AUTHTOKEN    = "your_ngrok_authtoken"
-NGROK_DOMAIN       = "xxxx-xxxx-xxxx.ngrok-free.app"
+CF_TUNNEL_TOKEN    = "your_tunnel_token"
+CF_TUNNEL_URL      = "https://api.yourdomain.com"
 
 # ── Webhooks ──────────────────────────────────────────────────────
 WEBHOOK_URL        = "https://discord.com/api/webhooks/..."
@@ -214,6 +220,7 @@ python CodeX.py
 | Variable | Default | Description |
 |---|---|---|
 | `TOKEN` | — | Discord bot token |
+| `OWNER_IDS` | — | Comma-separated owner Discord user IDs |
 | `LAVALINK_HOST` | — | Lavalink server hostname (no protocol) |
 | `LAVALINK_PASSWORD` | — | Lavalink password |
 | `LAVALINK_SECURE` | `true` | `true` = HTTPS, `false` = HTTP |
@@ -224,27 +231,47 @@ python CodeX.py
 | `DASHBOARD_API_KEY` | — | Shared secret between bot API and dashboard |
 | `CORS_ORIGINS` | _(empty)_ | Extra CORS-allowed origins, comma-separated |
 | `WEBHOOK_URL` | — | Discord webhook for command logs |
-| `TUNNEL_ENABLED` | `true` | Expose API over HTTPS via ngrok |
-| `NGROK_AUTHTOKEN` | — | ngrok auth token |
-| `NGROK_DOMAIN` | — | Reserved static domain (e.g. `xxxx.ngrok-free.app`) |
+| `TUNNEL_ENABLED` | `true` | Expose API over HTTPS via Cloudflare Tunnel |
+| `CF_TUNNEL_TOKEN` | — | Token from Cloudflare Zero Trust dashboard |
+| `CF_TUNNEL_URL` | — | Your permanent public URL |
 
 ---
 
-## ✦ HTTPS Tunnel (ngrok)
+## ✦ HTTPS Tunnel (Cloudflare)
 
-Uses **pyngrok** — downloads the ngrok binary automatically on first run. No system installs, works on Pterodactyl and any Python host.
+Uses **pycloudflared** — downloads the `cloudflared` binary automatically on first run. No system installs, no CLI, works on Pterodactyl and any Python host.
 
-### One-time setup
+**Why Cloudflare over ngrok:**
 
-1. Sign up free at [ngrok.com](https://ngrok.com)
-2. Copy your authtoken from [dashboard.ngrok.com/get-started/your-authtoken](https://dashboard.ngrok.com/get-started/your-authtoken)
-3. Reserve a free static domain at [dashboard.ngrok.com/domains](https://dashboard.ngrok.com/domains) — looks like `xxxx.ngrok-free.app`
-4. Add `NGROK_AUTHTOKEN` and `NGROK_DOMAIN` to `.env`
+| | Cloudflare Tunnel | ngrok free |
+|---|---|---|
+| Bandwidth | Unlimited | 1 GB/month |
+| Requests | Unlimited | 10k/month |
+| URL stability | Permanent | Permanent (1 domain) |
+| System install | ❌ Not needed | ❌ Not needed |
+| Cost | Free | Free |
+
+**Setup (browser only — no CLI needed):**
+
+1. Go to [one.dash.cloudflare.com](https://one.dash.cloudflare.com) → **Networks → Tunnels → Create a tunnel**
+2. Choose **Cloudflared**, name it (e.g. `zyrox-api`), save
+3. On **Install connector**, copy the token from the command shown:
+   ```
+   cloudflared tunnel run --token <COPY_THIS_TOKEN>
+   ```
+4. On **Public Hostname** tab → add a hostname:
+   - Subdomain: `api` · Domain: `yourdomain.com` · Service: `http://localhost:8000`
+5. Add to `.env`:
+   ```env
+   CF_TUNNEL_TOKEN = "eyJhIjoiXXXX..."
+   CF_TUNNEL_URL   = "https://api.yourdomain.com"
+   ```
 
 On every startup the console prints:
 ```
-◈ Tunnel: API is live at  https://xxxx.ngrok-free.app
-  ↳ set NEXT_PUBLIC_API_URL=https://xxxx.ngrok-free.app/api/v1
+◈ Tunnel: cloudflared binary ready — starting tunnel on port 8000…
+◈ Tunnel: API is live at  https://api.yourdomain.com
+  ↳ NEXT_PUBLIC_API_URL = https://api.yourdomain.com/api/v1
 ```
 
 Set `TUNNEL_ENABLED=false` to disable.
@@ -272,7 +299,7 @@ Upload the entire `bot/` folder to your host and set the start command to:
 python CodeX.py
 ```
 
-pyngrok downloads the ngrok binary on first run — no extra steps needed on any host.
+`pycloudflared` downloads the binary on first run — no extra steps on any host.
 
 > Recommended free hosts: Render · Railway · Fly.io · Pterodactyl
 >
@@ -289,8 +316,8 @@ pyngrok downloads the ngrok binary on first run — no extra steps needed on any
 | Dashboard can't reach API | Check `API_ENABLED=true` and `NEXT_PUBLIC_API_URL` in dashboard |
 | CORS errors | Add your Vercel URL to `CORS_ORIGINS` in `.env` |
 | Emojis showing as plain text | Run once with `EMOJI_SYNC=true` to upload and patch IDs |
-| Tunnel not starting | Check `NGROK_AUTHTOKEN` is valid |
-| Tunnel URL changes each restart | Set `NGROK_DOMAIN` to your reserved static domain |
+| Tunnel not starting | Check `CF_TUNNEL_TOKEN` is valid and `pycloudflared` is installed |
+| Want to add an owner | Add their ID to `OWNER_IDS` in `.env` — no code changes needed |
 
 ---
 
@@ -299,6 +326,8 @@ pyngrok downloads the ngrok binary on first run — no extra steps needed on any
 ## ✦ CodeX Devs
 
 *Built for protection. Designed for style.*
+
+<a href="https://discord.gg/codexdev"><img src="https://discord.com/api/guilds/1301573144817045524/widget.png?style=banner2" alt="CodeX Development Discord Server" width="480"/></a>
 
 <p>
   <a href="https://discord.gg/codexdev"><img src="https://img.shields.io/badge/Discord-Join_Server-5865F2?style=for-the-badge&logo=discord&logoColor=white"/></a>

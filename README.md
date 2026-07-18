@@ -10,7 +10,9 @@
 ```
 
 <h3>A feature-rich Discord bot paired with a sleek Next.js dashboard</h3>
-  <a href="https://nexiohost.in"><img src="https://img.shields.io/badge/⭐%20PREMIUM%20HOSTING-NexioHost-FFD700?style=for-the-badge&labelColor=1a1a2e&color=FFD700&logoColor=FFD700"/></a>
+
+<a href="https://nexiohost.in"><img src="https://img.shields.io/badge/⭐%20PREMIUM%20HOSTING-NexioHost-FFD700?style=for-the-badge&labelColor=1a1a2e&color=FFD700&logoColor=FFD700"/></a>
+
 <p>
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white"/></a>
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-14+-000000?style=for-the-badge&logo=nextdotjs&logoColor=white"/></a>
@@ -38,7 +40,7 @@ ZyroX-CV2-With-Dashboard/
 │   ├── api/                   Dashboard REST API (FastAPI)
 │   ├── cogs/                  All bot features (commands, events, antinuke, automod…)
 │   ├── core/                  Bot client, context, cog base
-│   ├── utils/                 Shared utilities (emoji, tools, sync, ngrok tunnel…)
+│   ├── utils/                 Shared utilities (emoji, tools, sync, cloudflare tunnel…)
 │   ├── games/                 Standalone game modules
 │   ├── assets/                Fonts, backgrounds, GIFs
 │   └── CodeX.py               Entry point
@@ -96,7 +98,7 @@ ZyroX-CV2-With-Dashboard/
 - Per-server settings management
 - Live bot stats & metrics
 - Fully branded & customisable
-- HTTPS via ngrok static domain
+- HTTPS via Cloudflare Tunnel (permanent URL)
 - Deploys to Vercel in minutes
 
 </td>
@@ -119,7 +121,7 @@ ZyroX-CV2-With-Dashboard/
 - Jishaku eval support
 - Slash + prefix commands
 - FastAPI backend with API key auth + rate limiting
-- ngrok HTTPS tunnel (pyngrok — works on Pterodactyl)
+- Cloudflare Tunnel — unlimited bandwidth, permanent URL, zero system installs
 - CodeX Devs watermark on every source file
 
 </td>
@@ -137,7 +139,7 @@ ZyroX-CV2-With-Dashboard/
 | Lavalink node | v4 |
 | Discord bot token | — |
 | Discord OAuth app | for dashboard login |
-| ngrok account (free) | for HTTPS tunnel |
+| Cloudflare account (free) | for HTTPS tunnel |
 
 ---
 
@@ -150,7 +152,7 @@ git clone https://github.com/RayExo/ZyroX-CV2-With-Dashboard
 cd ZyroX-CV2-With-Dashboard/bot
 ```
 
-**2 — Create a virtual environment and install dependencies**
+**2 — Install dependencies**
 
 ```bash
 python -m venv .venv
@@ -173,24 +175,28 @@ Copy `.env.example` to `.env` and fill in the values:
 TOKEN              = your_discord_bot_token
 brand_name         = 'ZyroX'
 
+# ── Owner IDs (comma-separated) ───────────────────────────────────
+OWNER_IDS          = 870179991462236170,767979794411028491
+
 # ── Lavalink ──────────────────────────────────────────────────────
-LAVALINK_HOST      = "lava-v4.ajieblogs.eu.org"
+LAVALINK_HOST      = "your-lavalink-host"
 LAVALINK_PASSWORD  = "your_password"
-LAVALINK_SECURE    = "true"     # true = HTTPS (no port needed)
-LAVALINK_PORT      = ""         # only needed when LAVALINK_SECURE=false
+LAVALINK_SECURE    = "true"
+LAVALINK_PORT      = ""
 
 # ── Emoji Sync ────────────────────────────────────────────────────
-EMOJI_SYNC         = "true"     # auto-uploads & patches emoji.py on startup
+EMOJI_SYNC         = "true"
 
 # ── API / Dashboard Backend ───────────────────────────────────────
 API_ENABLED        = "true"
 API_PORT           = "8000"
 DASHBOARD_API_KEY  = "change_this_to_a_strong_secret"
+CORS_ORIGINS       = ""
 
-# ── HTTPS Tunnel (ngrok) ──────────────────────────────────────────
+# ── Cloudflare Tunnel ─────────────────────────────────────────────
 TUNNEL_ENABLED     = "true"
-NGROK_AUTHTOKEN    = "your_ngrok_authtoken"
-NGROK_DOMAIN       = "xxxx-xxxx-xxxx.ngrok-free.app"
+CF_TUNNEL_TOKEN    = "your_tunnel_token"
+CF_TUNNEL_URL      = "https://api.yourdomain.com"
 
 # ── Webhooks ──────────────────────────────────────────────────────
 WEBHOOK_URL        = "https://discord.com/api/webhooks/..."
@@ -215,10 +221,10 @@ npm install
 
 **2 — Configure the environment**
 
-Copy `.env.example` to `.env.local` and fill in the values:
+Copy `.env.example` to `.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL           = https://xxxx.ngrok-free.app/api/v1
+NEXT_PUBLIC_API_URL           = https://api.yourdomain.com/api/v1
 NEXT_PUBLIC_DASHBOARD_API_KEY = your_shared_api_key
 
 NEXTAUTH_URL                  = http://localhost:3000
@@ -249,6 +255,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | Variable | Default | Description |
 |---|---|---|
 | `TOKEN` | — | Discord bot token |
+| `OWNER_IDS` | — | Comma-separated owner Discord user IDs |
 | `LAVALINK_HOST` | — | Lavalink server hostname (no protocol) |
 | `LAVALINK_PASSWORD` | — | Lavalink password |
 | `LAVALINK_SECURE` | `true` | `true` = HTTPS, `false` = HTTP |
@@ -257,16 +264,17 @@ Open [http://localhost:3000](http://localhost:3000)
 | `API_ENABLED` | `true` | Start the FastAPI dashboard backend |
 | `API_PORT` | `8000` | Port the backend listens on |
 | `DASHBOARD_API_KEY` | — | Shared secret between bot API and dashboard |
+| `CORS_ORIGINS` | _(empty)_ | Extra CORS-allowed origins, comma-separated |
 | `WEBHOOK_URL` | — | Discord webhook for command logs |
-| `TUNNEL_ENABLED` | `true` | Expose the API over HTTPS via ngrok |
-| `NGROK_AUTHTOKEN` | — | ngrok auth token |
-| `NGROK_DOMAIN` | — | Reserved static domain (e.g. `xxxx.ngrok-free.app`) |
+| `TUNNEL_ENABLED` | `true` | Expose the API over HTTPS via Cloudflare Tunnel |
+| `CF_TUNNEL_TOKEN` | — | Token from Cloudflare Zero Trust dashboard |
+| `CF_TUNNEL_URL` | — | Your permanent public URL (e.g. `https://api.yourdomain.com`) |
 
 ### Dashboard — `dashboard/.env.local`
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | Full URL to the bot's FastAPI backend (use ngrok URL in production) |
+| `NEXT_PUBLIC_API_URL` | Full URL to the bot's FastAPI backend — use Cloudflare Tunnel URL |
 | `NEXT_PUBLIC_DASHBOARD_API_KEY` | Must match `DASHBOARD_API_KEY` in the bot |
 | `NEXTAUTH_URL` | Your dashboard's public URL |
 | `NEXTAUTH_SECRET` | Random secret for NextAuth session signing |
@@ -278,31 +286,37 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## ✦ HTTPS Tunnel (ngrok)
+## ✦ HTTPS Tunnel (Cloudflare)
 
-The bot uses **pyngrok** to expose the API over HTTPS — no system installs needed, works on Pterodactyl and any Python host.
+The bot uses **pycloudflared** — a Python package that downloads the `cloudflared` binary automatically on first run. No CLI installs, no system packages — works on Pterodactyl and any Python host.
 
-With a free ngrok static domain the URL never changes between restarts.
+**Why Cloudflare over ngrok:**
+- ✅ Unlimited bandwidth & requests — no monthly caps
+- ✅ Permanent URL that never changes between restarts
+- ✅ Free — no paid plan needed
+- ✅ Zero system installs — binary downloads via Python
 
-**One-time setup:**
+**Setup (browser only, no CLI needed):**
 
-```bash
-# 1. Sign up free at https://ngrok.com
-# 2. Get your authtoken: https://dashboard.ngrok.com/get-started/your-authtoken
-# 3. Reserve a static domain: https://dashboard.ngrok.com/domains
-```
-
-Add to `bot/.env`:
-```env
-TUNNEL_ENABLED  = "true"
-NGROK_AUTHTOKEN = "your_token"
-NGROK_DOMAIN    = "xxxx.ngrok-free.app"
-```
+1. Go to [one.dash.cloudflare.com](https://one.dash.cloudflare.com) → **Networks → Tunnels → Create a tunnel**
+2. Choose **Cloudflared**, give it a name (e.g. `zyrox-api`), save
+3. On the **Install connector** step, copy the token from the command shown:
+   ```
+   cloudflared tunnel run --token <COPY_THIS>
+   ```
+4. Go to **Public Hostname** tab → add a hostname:
+   - Subdomain: `api` · Domain: `yourdomain.com` · Service: `http://localhost:8000`
+5. Add to `bot/.env`:
+   ```env
+   CF_TUNNEL_TOKEN = "eyJhIjoiXXXX..."
+   CF_TUNNEL_URL   = "https://api.yourdomain.com"
+   ```
 
 On every startup the console prints:
 ```
-◈ Tunnel: API is live at  https://xxxx.ngrok-free.app
-  ↳ set NEXT_PUBLIC_API_URL=https://xxxx.ngrok-free.app/api/v1
+◈ Tunnel: cloudflared binary ready — starting tunnel on port 8000…
+◈ Tunnel: API is live at  https://api.yourdomain.com
+  ↳ NEXT_PUBLIC_API_URL = https://api.yourdomain.com/api/v1
 ```
 
 ---
@@ -314,7 +328,7 @@ On every startup the console prints:
 1. Upload the entire `bot/` folder to your host (Pterodactyl, Render, Railway, Fly.io, VPS…)
 2. Set the start command to `python CodeX.py`
 3. Add all environment variables
-4. pyngrok downloads the ngrok binary automatically on first run — no extra steps
+4. `pycloudflared` downloads the binary automatically on first run — no extra steps
 
 > Recommended free/cheap hosts: Render · Railway · Fly.io · VPS
 >
@@ -364,9 +378,9 @@ Runs automatically on startup when `EMOJI_SYNC=true`:
 | Dashboard auth error | Check Discord OAuth client ID/secret and redirect URI |
 | Dashboard can't load data | Confirm `API_ENABLED=true`, bot is running, `NEXT_PUBLIC_API_URL` is correct |
 | Emojis showing as plain text | Run with `EMOJI_SYNC=true` once to upload and patch IDs |
-| CORS errors from dashboard | Make sure your Vercel URL is in the CORS origins list or add it via `CORS_ORIGINS` env var |
-| Tunnel not starting | Check `NGROK_AUTHTOKEN` is valid — get it from [dashboard.ngrok.com](https://dashboard.ngrok.com) |
-| Tunnel URL changes on restart | Set `NGROK_DOMAIN` to your reserved static domain |
+| CORS errors from dashboard | Add your Vercel URL to `CORS_ORIGINS` in `bot/.env` |
+| Tunnel not starting | Check `CF_TUNNEL_TOKEN` is valid and `pycloudflared` is installed |
+| Tunnel URL changed | Set `CF_TUNNEL_URL` — named tunnels always produce the same URL |
 
 ---
 
@@ -384,6 +398,8 @@ Runs automatically on startup when `EMOJI_SYNC=true`:
 ## ✦ CodeX Devs
 
 *Built for protection. Designed for style.*
+
+<a href="https://discord.gg/codexdev"><img src="https://discord.com/api/guilds/1301573144817045524/widget.png?style=banner2" alt="CodeX Development Discord Server" width="480"/></a>
 
 <p>
   <a href="https://discord.gg/codexdev"><img src="https://img.shields.io/badge/Discord-Join_Server-5865F2?style=for-the-badge&logo=discord&logoColor=white"/></a>

@@ -10,7 +10,9 @@
 ```
 
 <h3>ZyroX Dashboard — Next.js Web Interface</h3>
-  <a href="https://nexiohost.in"><img src="https://img.shields.io/badge/⭐%20PREMIUM%20HOSTING-NexioHost-FFD700?style=for-the-badge&labelColor=1a1a2e&color=FFD700&logoColor=FFD700"/></a>
+
+<a href="https://nexiohost.in"><img src="https://img.shields.io/badge/⭐%20PREMIUM%20HOSTING-NexioHost-FFD700?style=for-the-badge&labelColor=1a1a2e&color=FFD700&logoColor=FFD700"/></a>
+
 <p>
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-14+-000000?style=for-the-badge&logo=nextdotjs&logoColor=white"/></a>
   <a href="https://typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5+-3178C6?style=for-the-badge&logo=typescript&logoColor=white"/></a>
@@ -29,7 +31,7 @@
 
 ## ✦ Overview
 
-This folder contains the ZyroX web dashboard built with `Next.js 14` (App Router), `TypeScript`, and `Tailwind CSS`. It connects to the bot's FastAPI backend via HTTPS (ngrok tunnel) and lets server admins manage all bot settings through a sleek, branded UI.
+This folder contains the ZyroX web dashboard built with `Next.js 14` (App Router), `TypeScript`, and `Tailwind CSS`. It connects to the bot's FastAPI backend via a permanent Cloudflare Tunnel HTTPS URL and lets server admins manage all bot settings through a sleek, branded UI.
 
 ```
 dashboard/
@@ -66,7 +68,7 @@ dashboard/
 - **Live bot stats** — real-time metrics pulled from the FastAPI backend
 - **Admin panel** — owner-only configuration and announcements
 - **Fully branded** — name, logo, and colours via environment variables
-- **HTTPS ready** — works with the bot's ngrok static domain out of the box
+- **HTTPS ready** — connects to the bot's permanent Cloudflare Tunnel URL
 - **Vercel-ready** — deploys in minutes with zero config changes
 
 ---
@@ -95,8 +97,8 @@ Create a `.env.local` file in this folder:
 
 ```env
 # ── Bot API ───────────────────────────────────────────────────────
-# Use the ngrok static domain from the bot's tunnel
-NEXT_PUBLIC_API_URL           = https://xxxx-xxxx-xxxx.ngrok-free.app/api/v1
+# Use the Cloudflare Tunnel URL from the bot's console output
+NEXT_PUBLIC_API_URL           = https://api.yourdomain.com/api/v1
 NEXT_PUBLIC_DASHBOARD_API_KEY = your_shared_api_key   # must match bot's DASHBOARD_API_KEY
 
 # ── NextAuth ──────────────────────────────────────────────────────
@@ -127,7 +129,7 @@ Open [http://localhost:3000](http://localhost:3000)
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | Full URL to the bot's FastAPI backend — use the ngrok static domain |
+| `NEXT_PUBLIC_API_URL` | Full URL to the bot's FastAPI backend — use the Cloudflare Tunnel URL |
 | `NEXT_PUBLIC_DASHBOARD_API_KEY` | Must exactly match `DASHBOARD_API_KEY` in the bot `.env` |
 | `NEXTAUTH_URL` | Your dashboard's public URL (Vercel domain in production) |
 | `NEXTAUTH_SECRET` | Random secret for NextAuth session signing |
@@ -141,8 +143,6 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## ✦ Deployment (Vercel)
 
-Vercel is the recommended host — the project is pre-configured for zero-config deployment.
-
 **Step 1 — Connect your repo**
 
 Go to [vercel.com](https://vercel.com) → **Add New Project** → connect your GitHub repo → set root directory to `dashboard/`
@@ -155,12 +155,12 @@ In **Settings → Environment Variables**, add all keys from the table above.
 
 | Variable | Production Value |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://xxxx.ngrok-free.app/api/v1` |
+| `NEXT_PUBLIC_API_URL` | `https://api.yourdomain.com/api/v1` |
 | `NEXTAUTH_URL` | `https://your-app.vercel.app` |
 | `NEXTAUTH_SECRET` | [generate one](https://generate-secret.vercel.app/32) |
 | `DISCORD_CLIENT_ID` | from [Discord Developer Portal](https://discord.com/developers/applications) |
 
-**Step 3 — Add the redirect URI in Discord**
+**Step 3 — Add redirect URI in Discord**
 
 In your Discord app → **OAuth2 → Redirects** → add:
 
@@ -176,18 +176,20 @@ Hit **Deploy**. Vercel builds and publishes automatically. ✓
 
 ## ✦ Connecting to the Bot API
 
-The dashboard talks to the bot's FastAPI backend. The URL comes from `NEXT_PUBLIC_API_URL`.
+The dashboard reads the API URL from `NEXT_PUBLIC_API_URL`.
 
-- **Local dev** — set to `http://localhost:8000/api/v1` (bot running locally)
-- **Production** — set to the bot's ngrok static domain: `https://xxxx.ngrok-free.app/api/v1`
+| Environment | Value |
+|---|---|
+| Local dev | `http://localhost:8000/api/v1` |
+| Production | `https://api.yourdomain.com/api/v1` (Cloudflare Tunnel URL) |
 
-The bot prints the current tunnel URL every time it starts:
+The bot prints the confirmed URL on every startup:
 ```
-◈ Tunnel: API is live at  https://xxxx.ngrok-free.app
-  ↳ set NEXT_PUBLIC_API_URL=https://xxxx.ngrok-free.app/api/v1
+◈ Tunnel: API is live at  https://api.yourdomain.com
+  ↳ NEXT_PUBLIC_API_URL = https://api.yourdomain.com/api/v1
 ```
 
-If you set `NGROK_DOMAIN` in the bot's `.env`, this URL will never change between restarts.
+This URL is permanent — it never changes between restarts as long as the Cloudflare Tunnel token stays the same.
 
 ---
 
@@ -197,10 +199,10 @@ If you set `NGROK_DOMAIN` in the bot's `.env`, this URL will never change betwee
 |---|---|
 | Auth error on login | Check Discord OAuth client ID/secret and redirect URI in Developer Portal |
 | Dashboard can't load data | Confirm bot is running with `API_ENABLED=true` and `NEXT_PUBLIC_API_URL` is correct |
-| CORS error in browser | Make sure your Vercel URL is allowed — add it to `CORS_ORIGINS` in the bot's `.env` |
+| CORS error in browser | Add your Vercel URL to `CORS_ORIGINS` in the bot's `.env` |
 | `NEXTAUTH_SECRET` error | Make sure `NEXTAUTH_SECRET` is set and non-empty |
 | API key rejected (401) | `NEXT_PUBLIC_DASHBOARD_API_KEY` must exactly match `DASHBOARD_API_KEY` in the bot |
-| ngrok warning page appears | The bot's FastAPI middleware already injects the skip-warning header automatically |
+| Tunnel URL changed | Cloudflare named tunnels always produce the same URL — check `CF_TUNNEL_TOKEN` is valid |
 
 ---
 
@@ -209,6 +211,8 @@ If you set `NGROK_DOMAIN` in the bot's `.env`, this URL will never change betwee
 ## ✦ CodeX Devs
 
 *Built for protection. Designed for style.*
+
+<a href="https://discord.gg/codexdev"><img src="https://discord.com/api/guilds/1301573144817045524/widget.png?style=banner2" alt="CodeX Development Discord Server" width="480"/></a>
 
 <p>
   <a href="https://discord.gg/codexdev"><img src="https://img.shields.io/badge/Discord-Join_Server-5865F2?style=for-the-badge&logo=discord&logoColor=white"/></a>
