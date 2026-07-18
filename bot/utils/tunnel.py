@@ -63,29 +63,182 @@ _RED    = "\033[31m"
 _RESET  = "\033[0m"
 
 
-def _get_binary() -> str | None:
-    """
-    Return path to cloudflared binary.
-    pycloudflared downloads it automatically on first call.
-    """
+def _ensure_pycloudflared() -> bool:
+    """Install pycloudflared via pip if it's not available. Returns True on success."""
     try:
-        from pycloudflared import try_cloudflare   # noqa: F401 — triggers download
-        import pycloudflared as _pcf
-        # pycloudflared stores the binary path in this attribute after download
-        path = getattr(_pcf, "cloudflared_path", None)
-        if path and os.path.isfile(path):
-            return path
-        # Some versions expose it differently — walk the package dir
-        pkg_dir = os.path.dirname(_pcf.__file__)
-        for fname in os.listdir(pkg_dir):
-            if "cloudflared" in fname.lower() and os.access(os.path.join(pkg_dir, fname), os.X_OK):
-                return os.path.join(pkg_dir, fname)
+        import pycloudflared  # noqa: F401
+        return True
     except ImportError:
         pass
 
-    # Last resort: system PATH
+    print(f"{_YELLOW}◈ Tunnel: pycloudflared not found — installing via pip…{_RESET}")
+    try:
+        result = subprocess.run(
+            [__import__("sys").executable, "-m", "pip", "install", "pycloudflared"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=120,
+            text=True,
+        )
+        if result.returncode == 0:
+            print(f"{_GREEN}◈ Tunnel: pycloudflared installed successfully.{_RESET}")
+            return True
+        else:
+            print(f"{_RED}◈ Tunnel: pip install failed:\n{result.stdout}{_RESET}")
+            return False
+    except Exception as exc:
+        print(f"{_RED}◈ Tunnel: could not install pycloudflared — {exc}{_RESET}")
+        return False
+
+
+def _download_cloudflared_direct() -> str | None:
+    """
+    Last-resort: download the cloudflared binary directly from GitHub
+    into a local ./bin/ directory. Works even if pycloudflared fails.
+    """
+    import platform
+    import urllib.request
+    import stat
+
+    system  = platform.system().lower()   # linux / darwin / windows
+    machine = platform.machine().lower()  # x86_64 / aarch64 / arm64
+
+    # Map to Cloudflare's release naming
+    if system == "linux":
+        if machine in ("aarch64", "arm64"):
+            asset = "cloudflared-linux-arm64"
+        elif machine == "arm":
+            asset = "cloudflared-linux-arm"
+        else:
+            asset = "cloudflared-linux-amd64"
+    elif system == "darwin":
+        asset = "cloudflared-darwin-amd64"
+    elif system == "windows":
+        asset = "cloudflared-windows-amd64.exe"
+    else:
+        print(f"{_RED}◈ Tunnel: unsupported OS '{system}' for direct download.{_RESET}")
+        return None
+
+    url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/{asset}"
+    bin_dir = os.path.join(os.path.dirname(__file__), "..", "bin")
+    os.makedirs(bin_dir, exist_ok=True)
+    dest = os.path.join(bin_dir, asset)
+
+    if os.path.isfile(dest):
+        # Already downloaded — just ensure it's executable
+        pass
+    else:
+        print(f"{_YELLOW}◈ Tunnel: downloading cloudflared binary from GitHub…{_RESET}")
+        try:
+            urllib.request.urlretrieve(url, dest)
+            print(f"{_GREEN}◈ Tunnel: downloaded to {dest}{_RESET}")
+        except Exception as exc:
+            print(f"{_RED}◈ Tunnel: direct download failed — {exc}{_RESET}")
+            return None
+
+    # Fix execute bit
+    try:
+        current = os.stat(dest).st_mode
+        os.chmod(dest, current | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    except OSError:
+        pass
+
+    return dest
+
+
+def _get_binary() -> str | None:
+    """
+    Return a working path to the cloudflared binary.
+    Strategy (in order):
+      1. pycloudflared package  (auto-installs package if missing, triggers binary download)
+      2. System PATH
+      3. Direct GitHub download into ./bin/
+    """
     import shutil
-    return shutil.which("cloudflared")
+    import stat
+
+    # ── Step 0: make sure pycloudflared is installed ──────────────────────────
+    _ensure_pycloudflared()
+
+    candidates: list[str] = []
+
+    # ── Step 1: ask pycloudflared for the binary ───────────────────────────────
+    try:
+        import pycloudflared as _pcf
+
+        # cloudflared_path attribute (set after first download)
+        path = getattr(_pcf, "cloudflared_path", None)
+        if path:
+            candidates.append(str(path))
+
+        # Walk the package directory for any cloudflared file
+        pkg_dir = os.path.dirname(_pcf.__file__)
+        for fname in os.listdir(pkg_dir):
+            full = os.path.join(pkg_dir, fname)
+            if "cloudflared" in fname.lower() and os.path.isfile(full):
+                candidates.append(full)
+
+        # pycloudflared ≥ 0.2 exposes a download() helper
+        if not candidates or not any(os.path.isfile(c) for c in candidates):
+            download_fn = getattr(_pcf, "download", None)
+            if callable(download_fn):
+                print(f"{_YELLOW}◈ Tunnel: triggering pycloudflared binary download…{_RESET}")
+                try:
+                    downloaded = download_fn()
+                    if downloaded:
+                        candidates.append(str(downloaded))
+                except Exception:
+                    pass
+
+    except ImportError:
+        pass
+
+    # ── Step 2: system PATH ────────────────────────────────────────────────────
+    sys_path = shutil.which("cloudflared")
+    if sys_path:
+        candidates.append(sys_path)
+
+    # ── Step 3: validate each candidate ───────────────────────────────────────
+    for candidate in candidates:
+        if not os.path.isfile(candidate):
+            continue
+        # Fix execute bit (common issue in Pterodactyl containers)
+        try:
+            current = os.stat(candidate).st_mode
+            if not (current & stat.S_IXUSR):
+                os.chmod(candidate, current | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        except OSError:
+            pass
+        # Smoke-test
+        try:
+            result = subprocess.run(
+                [candidate, "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return candidate
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+
+    # ── Step 4: direct GitHub download as last resort ─────────────────────────
+    print(f"{_YELLOW}◈ Tunnel: no working binary found — attempting direct download…{_RESET}")
+    direct = _download_cloudflared_direct()
+    if direct and os.path.isfile(direct):
+        try:
+            result = subprocess.run(
+                [direct, "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return direct
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    return None
 
 
 def _run_tunnel(binary: str, token: str, port: int, public_url: str) -> None:
@@ -142,8 +295,9 @@ def _run_tunnel(binary: str, token: str, port: int, public_url: str) -> None:
             proc.wait()
             code = proc.returncode
 
-        except FileNotFoundError:
-            print(f"{_RED}◈ Tunnel: binary not found at '{binary}' — try: pip install pycloudflared{_RESET}")
+        except (FileNotFoundError, PermissionError) as exc:
+            print(f"{_RED}◈ Tunnel: failed to execute binary at '{binary}' — {exc}{_RESET}")
+            print(f"{_RED}  Check: file exists, has execute permission, and matches the server OS/arch.{_RESET}")
             return
         except Exception as exc:
             print(f"{_RED}◈ Tunnel: unexpected error — {exc}{_RESET}")
@@ -172,8 +326,9 @@ def start_tunnel() -> None:
     binary = _get_binary()
     if not binary:
         print(
-            f"{_RED}◈ Tunnel: cloudflared binary not found.\n"
-            f"  Make sure pycloudflared is installed: pip install pycloudflared{_RESET}"
+            f"{_RED}◈ Tunnel: could not obtain a working cloudflared binary after all attempts.\n"
+            f"  Tunnel will not start. Check your network or install manually:\n"
+            f"  pip install pycloudflared{_RESET}"
         )
         return
 
