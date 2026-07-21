@@ -10,7 +10,9 @@
 ```
 
 <h3>Nyzro Bot — Python Discord Bot + FastAPI Backend</h3>
+<p><strong>Founder: Nyzro</strong></p>
 
+<a href="https://discord.com/oauth2/authorize?client_id=1529198352606953542&permissions=8&integration_type=0&scope=bot+applications.commands"><img src="https://img.shields.io/badge/Invite_Nyzro-5865F2?style=for-the-badge&logo=discord&logoColor=white"/></a>
 <a href="https://nexiohost.in"><img src="https://img.shields.io/badge/⭐%20PREMIUM%20HOSTING-NexioHost-FFD700?style=for-the-badge&labelColor=1a1a2e&color=FFD700&logoColor=FFD700"/></a>
 
 <p>
