@@ -107,6 +107,13 @@ export default function DashboardLayout({
     ? [
         { name: "Overview", href: `/dashboard/guild/${currentGuildId}`, icon: LayoutDashboard },
         {
+          name: "AI & Intelligence",
+          items: [
+            { name: "AI Platform", href: `/dashboard/guild/${currentGuildId}/ai`, icon: Sparkles },
+            { name: "Analytics", href: `/dashboard/guild/${currentGuildId}/analytics`, icon: BarChart4 },
+          ],
+        },
+        {
           name: "Security",
           items: [
             { name: "Anti-Nuke", href: `/dashboard/guild/${currentGuildId}/antinuke`, icon: ShieldCheck },
@@ -135,6 +142,9 @@ export default function DashboardLayout({
             { name: "Join to Create", href: `/dashboard/guild/${currentGuildId}/j2c`, icon: Menu },
             { name: "Custom Roles", href: `/dashboard/guild/${currentGuildId}/customroles`, icon: ShieldCheck },
             { name: "Voice Role", href: `/dashboard/guild/${currentGuildId}/invcrole`, icon: Settings },
+            { name: "Starboard", href: `/dashboard/guild/${currentGuildId}/starboard`, icon: Star },
+            { name: "Custom Commands", href: `/dashboard/guild/${currentGuildId}/customcommands`, icon: FileText },
+            { name: "Logging", href: `/dashboard/guild/${currentGuildId}/logging`, icon: FileText },
           ],
         },
         { name: "Settings", href: `/dashboard/guild/${currentGuildId}/settings`, icon: Settings },
