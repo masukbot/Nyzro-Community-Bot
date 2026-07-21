@@ -425,8 +425,7 @@ class AI (commands .Cog ):
         except Exception as e :
             logger .error (f"Error loading chatbot settings: {e}")
 
-    @commands .Cog .listener ()
-    async def on_message (self ,message :discord .Message ):
+    async def _legacy_on_message (self ,message :discord .Message ):
         if message .author .bot or not message .guild :
             return 
 
@@ -1759,6 +1758,8 @@ Support server: https://discord.gg/codexdev"""
             return
 
         guild_id = message.guild.id
+        channel_id_str = str(message.channel.id)
+
         try:
             from api.db_manager import db_manager
             db = await db_manager.get_connection('db/ai.db')
@@ -1769,20 +1770,23 @@ Support server: https://discord.gg/codexdev"""
 
             data = json.loads(row[1])
             chat_channels = data.get("chat_channels", [])
-            channel_id_str = str(message.channel.id)
 
-            matching_ch = next((c for c in chat_channels if c.get("channel_id") == channel_id_str and c.get("enabled")), None)
+            matching_ch = next((
+                c for c in chat_channels
+                if str(c.get("channel_id")) == channel_id_str and (c.get("enabled") in [True, 1, "true", "True", None])
+            ), None)
+
             if not matching_ch:
                 return
 
             mode = matching_ch.get("mode", "reply_all")
-            bot_mentioned = self.bot.user in message.mentions
+            bot_mentioned = (self.bot.user in message.mentions) if self.bot.user else False
 
             if mode == "mention_only" and not bot_mentioned:
                 return
 
             prompt = message.clean_content
-            if bot_mentioned:
+            if bot_mentioned and self.bot.user:
                 prompt = prompt.replace(f"@{self.bot.user.name}", "").strip()
 
             if not prompt:
@@ -1799,7 +1803,7 @@ Support server: https://discord.gg/codexdev"""
             if not target_provider_id or target_provider_id == "default":
                 target_provider_id = chat_feature.get("assigned_model_id") if chat_feature else ""
 
-            provider = next((p for p in providers if p.get("id") == target_provider_id), None)
+            provider = next((p for p in providers if str(p.get("id")) == str(target_provider_id)), None)
             if not provider and len(providers) > 0:
                 provider = providers[0]
 
@@ -1809,58 +1813,61 @@ Support server: https://discord.gg/codexdev"""
             provider_type = (provider.get("provider_type") if provider else "groq") or "groq"
 
             response_text = ""
-            if provider_type == "groq" or "groq" in endpoint.lower() or (api_key and api_key.startswith("gsk_")):
-                async with aiohttp.ClientSession() as session:
-                    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                    payload = {
-                        "model": model_name,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt}
-                        ],
-                        "temperature": matching_ch.get("temperature", 0.7),
-                        "max_tokens": 800
-                    }
-                    target_url = "https://api.groq.com/openai/v1/chat/completions"
-                    if endpoint and "groq.com" not in endpoint:
-                        target_url = endpoint if endpoint.endswith("/chat/completions") else f"{endpoint.rstrip('/')}/chat/completions"
-                    async with session.post(target_url, json=payload, headers=headers, timeout=15) as resp:
-                        if resp.status == 200:
-                            res_json = await resp.json()
-                            response_text = res_json['choices'][0]['message']['content'].strip()
+            async with message.channel.typing():
+                if provider_type == "groq" or "groq" in endpoint.lower() or (api_key and api_key.startswith("gsk_")):
+                    async with aiohttp.ClientSession() as session:
+                        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                        payload = {
+                            "model": model_name,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "temperature": float(matching_ch.get("temperature") or 0.7),
+                            "max_tokens": 800
+                        }
+                        target_url = "https://api.groq.com/openai/v1/chat/completions"
+                        if endpoint and "groq.com" not in endpoint:
+                            target_url = endpoint if endpoint.endswith("/chat/completions") else f"{endpoint.rstrip('/')}/chat/completions"
+                        async with session.post(target_url, json=payload, headers=headers, timeout=15) as resp:
+                            if resp.status == 200:
+                                res_json = await resp.json()
+                                response_text = res_json['choices'][0]['message']['content'].strip()
+                            else:
+                                logger.error(f"Groq API returned HTTP {resp.status}: {await resp.text()}")
 
-            elif provider_type == "gemini":
-                if GEMINI_AVAILABLE and api_key:
-                    genai.configure(api_key=api_key)
-                    gem_model = genai.GenerativeModel(model_name if "gemini" in model_name.lower() else "gemini-1.5-flash")
-                    res = gem_model.generate_content(f"System Prompt: {system_prompt}\nUser Message: {prompt}")
-                    response_text = res.text
+                elif provider_type == "gemini":
+                    if GEMINI_AVAILABLE and api_key:
+                        genai.configure(api_key=api_key)
+                        gem_model = genai.GenerativeModel(model_name if "gemini" in model_name.lower() else "gemini-1.5-flash")
+                        res = gem_model.generate_content(f"System Prompt: {system_prompt}\nUser Message: {prompt}")
+                        response_text = res.text
 
-            if not response_text and api_key:
-                # OpenAI / OpenRouter / Custom endpoint fallback
-                async with aiohttp.ClientSession() as session:
-                    headers = {"Content-Type": "application/json"}
-                    if api_key:
-                        headers["Authorization"] = f"Bearer {api_key}"
-                    payload = {
-                        "model": model_name,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt}
-                        ]
-                    }
-                    base_ep = endpoint or "https://api.openai.com/v1"
-                    target_url = base_ep if base_ep.endswith("/chat/completions") else f"{base_ep.rstrip('/')}/chat/completions"
-                    async with session.post(target_url, json=payload, headers=headers, timeout=15) as resp:
-                        if resp.status == 200:
-                            res_json = await resp.json()
-                            response_text = res_json['choices'][0]['message']['content'].strip()
+                if not response_text and api_key:
+                    # OpenAI / OpenRouter / Custom endpoint fallback
+                    async with aiohttp.ClientSession() as session:
+                        headers = {"Content-Type": "application/json"}
+                        if api_key:
+                            headers["Authorization"] = f"Bearer {api_key}"
+                        payload = {
+                            "model": model_name,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": prompt}
+                            ]
+                        }
+                        base_ep = endpoint or "https://api.openai.com/v1"
+                        target_url = base_ep if base_ep.endswith("/chat/completions") else f"{base_ep.rstrip('/')}/chat/completions"
+                        async with session.post(target_url, json=payload, headers=headers, timeout=15) as resp:
+                            if resp.status == 200:
+                                res_json = await resp.json()
+                                response_text = res_json['choices'][0]['message']['content'].strip()
 
-            if not response_text:
-                response_text = await self._get_groq_response(prompt, [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
+                if not response_text:
+                    response_text = await self._get_groq_response(prompt, [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
 
-            if response_text:
-                await message.reply(response_text, mention_author=False)
+                if response_text:
+                    await message.reply(response_text, mention_author=False)
         except Exception as e:
             logger.error(f"Error in AI auto chat on_message: {e}")
 
