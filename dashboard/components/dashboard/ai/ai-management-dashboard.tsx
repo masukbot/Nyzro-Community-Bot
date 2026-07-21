@@ -107,11 +107,9 @@ const BUILTIN_PROVIDERS_LIST = [
 const SUB_MODULES = [
   { id: "overview", name: "Overview & Analytics", icon: Activity },
   { id: "providers", name: "AI Providers", icon: Server },
-  { id: "models", name: "Model Library", icon: Cpu },
   { id: "assignment", name: "Feature Mapping", icon: Layers },
   { id: "channels", name: "AI Chat Channels", icon: MessageSquare },
   { id: "personas", name: "AI Personas", icon: UserCheck },
-  { id: "memory", name: "Memory System", icon: Brain },
   { id: "moderation", name: "AI Moderation", icon: ShieldAlert },
   { id: "vision", name: "Vision & Attachments", icon: Eye },
   { id: "dm_warnings", name: "DM Warnings", icon: Bell },
@@ -122,6 +120,68 @@ const SUB_MODULES = [
   { id: "testing", name: "Testing Playground", icon: Terminal },
   { id: "security", name: "Security & Keys", icon: Lock },
 ];
+
+interface ConfirmationModalProps {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  confirmText?: string;
+  cancelText?: string;
+  isDanger?: boolean;
+  isLoading?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ConfirmationModal({
+  isOpen,
+  title,
+  description,
+  confirmText = "Delete",
+  cancelText = "Cancel",
+  isDanger = true,
+  isLoading = false,
+  onConfirm,
+  onCancel,
+}: ConfirmationModalProps) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+      <div className="bg-[#141B2D] border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex items-center gap-3 text-red-400">
+          <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">{title}</h3>
+            <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Destructive Action</span>
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">{description}</p>
+
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[11px] text-red-300 font-medium">
+          ⚠️ Warning: This action is permanent and cannot be undone.
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <Button variant="ghost" onClick={onCancel} disabled={isLoading} className="text-xs font-bold">
+            {cancelText}
+          </Button>
+          <Button
+            variant={isDanger ? "destructive" : "default"}
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="gap-2 text-xs font-bold"
+          >
+            {isLoading ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {confirmText}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface AIManagementDashboardProps {
   initialConfig: EnterpriseAIConfig;
@@ -290,10 +350,42 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
     toast.success(`Provider profile '${newProf.name}' created!`);
   };
 
-  // Delete Provider Profile
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
+
+  const requestConfirmation = (title: string, description: string, onConfirmAction: () => void) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      description,
+      onConfirm: () => {
+        onConfirmAction();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  // Delete Provider Profile with Confirmation
   const handleDeleteProvider = (id: string) => {
-    setConfig(prev => ({ ...prev, providers: prev.providers.filter(p => p.id !== id) }));
-    toast.success("Provider profile removed.");
+    const target = config.providers.find(p => p.id === id);
+    requestConfirmation(
+      `Delete Provider Profile "${target?.name || id}"?`,
+      `This will permanently remove this AI provider profile and its API key configuration from your server.`,
+      () => {
+        setConfig(prev => ({ ...prev, providers: prev.providers.filter(p => p.id !== id) }));
+        toast.success("Provider profile deleted.");
+      }
+    );
   };
 
   return (
@@ -819,9 +911,15 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            const updated = config.chat_channels.filter((_, i) => i !== idx);
-                            setConfig(prev => ({ ...prev, chat_channels: updated }));
-                            toast.success("AI Chat Channel removed.");
+                            requestConfirmation(
+                              `Remove AI Chat Channel "${ch.channel_name || `#${ch.channel_id}`}"?`,
+                              `The bot will immediately stop responding automatically to messages in this text channel.`,
+                              () => {
+                                const updated = config.chat_channels.filter((_, i) => i !== idx);
+                                setConfig(prev => ({ ...prev, chat_channels: updated }));
+                                toast.success("AI Chat Channel removed.");
+                              }
+                            );
                           }}
                           className="text-slate-500 hover:text-red-400 hover:bg-red-500/10"
                         >
@@ -1521,6 +1619,15 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
         </div>
 
       </div>
+
+      {/* Confirmation Dialog Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
 
       {/* Global Bottom Sticky Save Bar */}
       <div className="sticky bottom-6 z-40 bg-[#141B2D]/90 backdrop-blur-md border border-slate-800 rounded-3xl p-4 shadow-2xl flex items-center justify-between max-w-7xl mx-auto">

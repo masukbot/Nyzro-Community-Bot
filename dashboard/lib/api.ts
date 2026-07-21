@@ -295,50 +295,17 @@ export const api = {
     }),
 
   testAIProviderConnection: async (providerId: string, profile: any) => {
-    try {
-      return await request<any>(`/ai/providers/test`, {
-        method: "POST",
-        body: JSON.stringify({ providerId, profile }),
-      });
-    } catch {
-      // Live test simulation for instant UI feedback
-      await new Promise(r => setTimeout(r, 600));
-      return {
-        status: "ok",
-        latency_ms: Math.floor(Math.random() * 80) + 40,
-        model: profile.default_model || "gpt-4o",
-        response: "Connection successful. AI Provider is active and responding.",
-      };
-    }
+    return await request<any>(`/ai/providers/test`, {
+      method: "POST",
+      body: JSON.stringify({ providerId, profile }),
+    });
   },
 
   runAITestPlayground: async (guildId: string, payload: any) => {
-    try {
-      return await request<any>(`/guilds/${guildId}/ai/playground`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      await new Promise(r => setTimeout(r, 800));
-      const inputLen = (payload.prompt || "").length;
-      const inputTok = Math.max(12, Math.floor(inputLen / 4));
-      const outputTok = 145;
-      return {
-        status: "success",
-        latency_ms: Math.floor(Math.random() * 200) + 120,
-        input_tokens: inputTok,
-        output_tokens: outputTok,
-        estimated_cost: Number(((inputTok * 0.0000015) + (outputTok * 0.000006)).toFixed(6)),
-        response_text: `[AI Playground Test Response]\nFeature: ${payload.feature || "Chat AI"}\nModel: ${payload.modelId || "gemini-2.5-flash"}\nStatus: Enterprise Execution Verified. Operational and responding within optimal safety parameters.`,
-        debug_logs: [
-          `[0.00s] Routing request for feature: ${payload.feature || "chat"}`,
-          `[0.05s] Selected Primary Provider Profile: Google Gemini Production`,
-          `[0.12s] Sending payload to base URL endpoint...`,
-          `[0.21s] Received HTTP 200 OK with finish_reason: 'stop'`,
-          `[0.22s] Token usage computed: ${inputTok} in / ${outputTok} out.`
-        ]
-      };
-    }
+    return await request<any>(`/guilds/${guildId}/ai/playground`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   }
 };
 
@@ -355,69 +322,44 @@ export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfi
       average_latency_ms: 0,
       success_rate_pct: 100,
     },
-    providers: [
-      { id: "p1", name: "Google Gemini Production", provider_type: "gemini", icon: "sparkles", api_key: "", endpoint: "https://generativelanguage.googleapis.com", default_model: "gemini-2.5-flash", timeout_seconds: 30, retry_policy: { max_retries: 3, backoff_factor: 2 }, streaming_supported: true, rate_limit: { rpm: 1000, tpm: 1000000 }, enabled: false, is_custom: false, status: "untested", last_latency_ms: 0 },
-      { id: "p2", name: "Anthropic Claude Premium", provider_type: "anthropic", icon: "bot", api_key: "", endpoint: "https://api.anthropic.com/v1", default_model: "claude-3-5-sonnet-20241022", timeout_seconds: 45, retry_policy: { max_retries: 3, backoff_factor: 2 }, streaming_supported: true, rate_limit: { rpm: 600, tpm: 400000 }, enabled: false, is_custom: false, status: "untested", last_latency_ms: 0 },
-      { id: "p3", name: "OpenAI GPT-4o Core", provider_type: "openai", icon: "zap", api_key: "", endpoint: "https://api.openai.com/v1", default_model: "gpt-4o", timeout_seconds: 30, retry_policy: { max_retries: 3, backoff_factor: 1.5 }, streaming_supported: true, rate_limit: { rpm: 800, tpm: 500000 }, enabled: false, is_custom: false, status: "untested", last_latency_ms: 0 },
-      { id: "p4", name: "Groq Ultra Fast", provider_type: "groq", icon: "cpu", api_key: "", endpoint: "https://api.groq.com/openai/v1", default_model: "llama-3.3-70b-versatile", timeout_seconds: 15, retry_policy: { max_retries: 4, backoff_factor: 1.5 }, streaming_supported: true, rate_limit: { rpm: 1200, tpm: 800000 }, enabled: false, is_custom: false, status: "untested", last_latency_ms: 0 },
-    ],
-    models: [
-      { id: "m1", model_name: "gemini-2.5-flash", provider_id: "p1", description: "Google's ultra-fast multimodal AI model designed for speed and reasoning.", context_window: 1048576, max_output_tokens: 8192, temperature: 0.7, top_p: 0.95, frequency_penalty: 0, presence_penalty: 0, supports_vision: true, supports_image_gen: false, supports_audio: true, supports_streaming: true, input_cost_per_1m: 0.15, output_cost_per_1m: 0.60, speed_rating: "ultra_fast", recommended_use_cases: ["Chat AI", "Summarization", "Image Captioning"] },
-      { id: "m2", model_name: "claude-3-5-sonnet-20241022", provider_id: "p2", description: "Anthropic's flagship model for coding, reasoning, and complex moderation.", context_window: 200000, max_output_tokens: 8192, temperature: 0.5, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, supports_vision: true, supports_image_gen: false, supports_audio: false, supports_streaming: true, input_cost_per_1m: 3.00, output_cost_per_1m: 15.00, speed_rating: "balanced", recommended_use_cases: ["Moderation AI", "Knowledge Assistant", "Ticket Assistant"] },
-      { id: "m3", model_name: "gpt-4o", provider_id: "p3", description: "OpenAI's high-intelligence flagship model with native vision capabilities.", context_window: 128000, max_output_tokens: 4096, temperature: 0.7, top_p: 1.0, frequency_penalty: 0, presence_penalty: 0, supports_vision: true, supports_image_gen: true, supports_audio: true, supports_streaming: true, input_cost_per_1m: 2.50, output_cost_per_1m: 10.00, speed_rating: "fast", recommended_use_cases: ["Scam Image Detection", "OCR", "Translation"] },
-      { id: "m4", model_name: "llama-3.3-70b-versatile", provider_id: "p4", description: "Groq accelerated open weight model with sub-second inference latency.", context_window: 128000, max_output_tokens: 4096, temperature: 0.6, top_p: 0.9, frequency_penalty: 0, presence_penalty: 0, supports_vision: false, supports_image_gen: false, supports_audio: false, supports_streaming: true, input_cost_per_1m: 0.59, output_cost_per_1m: 0.79, speed_rating: "ultra_fast", recommended_use_cases: ["Auto Moderation", "Spam Detection", "Message Classification"] }
-    ],
-    feature_assignments: [
-      { feature_key: "chat_ai", feature_name: "Chat AI", description: "Handles interactive community chat conversations in designated channels.", category: "chat", assigned_model_id: "m1", fallback_model_id: "m4", enabled: false },
-      { feature_key: "moderation_ai", feature_name: "Moderation AI", description: "Evaluates context, hate speech, and toxicity in messages.", category: "moderation", assigned_model_id: "m2", fallback_model_id: "m4", enabled: false },
-      { feature_key: "scam_image_detection", feature_name: "Scam Image Detection", description: "Scans uploaded images for QR code scams, fake gift cards, and nitro giveaways.", category: "vision", assigned_model_id: "m3", fallback_model_id: "m1", enabled: false },
-      { feature_key: "auto_moderation", feature_name: "Auto Moderation", description: "Rapid sub-second message evaluation for instant action.", category: "moderation", assigned_model_id: "m4", fallback_model_id: "m1", enabled: false },
-      { feature_key: "translation", feature_name: "Translation", description: "Multi-language real-time translation of user messages.", category: "utility", assigned_model_id: "m3", fallback_model_id: "m1", enabled: false },
-      { feature_key: "summarization", feature_name: "Summarization", description: "Generates quick recaps of active chat threads and ticket discussions.", category: "utility", assigned_model_id: "m2", fallback_model_id: "m1", enabled: false },
-    ],
+    providers: [],
+    models: [],
+    feature_assignments: [],
     chat_channels: [],
-    personas: [
-      { id: "per1", name: "Nyzro Assistant", preset_type: "friendly", description: "Helpful, welcoming, and polite AI persona suitable for public chat.", system_prompt: "You are Nyzro, a friendly community assistant for this Discord server. Always maintain a warm, respectful tone.", custom_instructions: [], rules: [], response_style: "concise", language_preference: "English", emoji_usage: "expressive", markdown_enabled: true, code_formatting_rules: "Use language-tagged fenced code blocks" }
-    ],
+    personas: [],
     memory: {
       guild_id: guildId,
-      global_mode: "persistent",
-      max_messages_per_conversation: 25,
-      token_limit_window: 8192,
+      global_mode: "disabled",
+      max_messages_per_conversation: 10,
+      token_limit_window: 4096,
       expiration_hours: 24,
       auto_cleanup: true
     },
-    moderation_detectors: [
-      { id: "mod1", name: "Spam Detection", description: "Identifies rapid repetitive messages, wall text, and automated bot chatter.", enabled: true, sensitivity: 80, assigned_model_id: "m4", action: "delete", cooldown_seconds: 2 },
-      { id: "mod2", name: "Scam & Phishing Detection", description: "Detects fraudulent URLs, fake Steam links, and account theft attempts.", enabled: true, sensitivity: 95, assigned_model_id: "m2", action: "ban", cooldown_seconds: 0 },
-      { id: "mod3", name: "Toxic & Hostile Language", description: "Evaluates aggressive insult language, harassment, and severe toxicity.", enabled: true, sensitivity: 85, assigned_model_id: "m5", action: "timeout", cooldown_seconds: 5 },
-      { id: "mod4", name: "Fake Nitro Giveaway Scam", description: "Flags suspicious free Nitro links and authorization theft tokens.", enabled: true, sensitivity: 90, assigned_model_id: "m3", action: "delete", cooldown_seconds: 0 },
-      { id: "mod5", name: "Crypto Scam & Pump Schemes", description: "Blocks unauthorized cryptocurrency advertising, Telegram tokens, and rugpulls.", enabled: true, sensitivity: 85, assigned_model_id: "m4", action: "warn", cooldown_seconds: 10 }
-    ],
+    moderation_detectors: [],
     vision: {
       guild_id: guildId,
-      scam_image_detection: true,
-      qr_scam_detection: true,
-      fake_nitro_detection: true,
-      malicious_attachment_detection: true,
-      ocr_enabled: true,
-      nsfw_image_detection: true,
-      violence_detection: true,
-      assigned_vision_model: "m3",
+      scam_image_detection: false,
+      qr_scam_detection: false,
+      fake_nitro_detection: false,
+      malicious_attachment_detection: false,
+      ocr_enabled: false,
+      nsfw_image_detection: false,
+      violence_detection: false,
+      assigned_vision_model: "",
       confidence_threshold: 85,
       action: "delete"
     },
     attachment_scanner: {
       guild_id: guildId,
-      enabled: true,
-      scan_images: true,
-      scan_pdf: true,
-      scan_doc: true,
-      scan_zip: true,
-      scan_executables: true,
-      scan_scripts: true,
+      enabled: false,
+      scan_images: false,
+      scan_pdf: false,
+      scan_doc: false,
+      scan_zip: false,
+      scan_executables: false,
+      scan_scripts: false,
       action: "quarantine",
-      model_id: "m3"
+      model_id: ""
     },
     dm_warning: {
       guild_id: guildId,
