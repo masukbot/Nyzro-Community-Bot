@@ -451,9 +451,10 @@ class AuthTokenCreate(BaseModel):
 # --- AI Platform Schemas ---
 
 class AIChatChannelSchema(BaseModel):
+    id: Optional[str] = None
     channel_id: str
     channel_name: Optional[str] = None
-    enabled: bool = False
+    enabled: bool = True
     model_id: Optional[str] = None
     system_prompt: Optional[str] = None
     mode: str = "reply_all"  # "reply_all" | "mention_only"

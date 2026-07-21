@@ -903,8 +903,8 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                             setConfig(prev => ({ ...prev, chat_channels: updated }));
                           }}
                           options={[
-                            { value: "default", label: "Default System Model" },
-                            ...config.models.map(m => ({ value: m.id, label: m.model_name }))
+                            { value: "default", label: "Inherit Chat AI Provider (Feature Mapping)" },
+                            ...config.providers.map(p => ({ value: p.id, label: `${p.name} (${p.default_model || p.provider_type})` }))
                           ]}
                           className="mt-1"
                         />
