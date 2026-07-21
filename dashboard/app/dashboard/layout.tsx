@@ -172,7 +172,7 @@ export default function DashboardLayout({
   const BackLinkIcon = backLinkItem?.icon || Server;
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] text-slate-800 dark:text-slate-200 transition-colors duration-300">
       {/* Liquid Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-500/5 blur-[120px] rounded-full animate-pulse" />
@@ -190,7 +190,7 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-4 top-4 bottom-4 z-50 w-64 transform transition-all duration-500 ease-in-out lg:translate-x-0 glass border border-white/10 rounded-[2.5rem] shadow-2xl shadow-black/40 overflow-hidden flex flex-col",
+          "fixed left-4 top-4 bottom-4 z-50 w-64 transform transition-all duration-500 ease-in-out lg:translate-x-0 glass bg-white/80 dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col",
           isSidebarOpen ? "translate-x-0" : "-translate-x-[110%]"
         )}
       >
@@ -201,7 +201,7 @@ export default function DashboardLayout({
               <Bot className="h-5 w-5 text-white" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-lg font-bold tracking-tight text-white font-outfit leading-none">
+              <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white font-outfit leading-none">
                 {process.env.NEXT_PUBLIC_BRAND_NAME || "Nyzro"}
               </h1>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-500/80 mt-1">
@@ -318,9 +318,9 @@ export default function DashboardLayout({
       {/* Main Content Area */}
       <div className="lg:pl-72 flex flex-col min-h-screen relative z-10">
         {/* Top Navbar */}
-        <header className="h-20 sticky top-4 z-30 mx-4 lg:mx-10 flex items-center justify-between border border-white/10 glass bg-white/[0.01] backdrop-blur-3xl px-8 rounded-[2rem] shadow-xl shadow-black/20 mb-6 mt-4">
+        <header className="h-20 sticky top-4 z-30 mx-4 lg:mx-10 flex items-center justify-between border border-slate-200 dark:border-white/10 glass bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl px-8 rounded-[2rem] shadow-xl mb-6 mt-4 transition-colors">
           <button
-            className="p-2 lg:hidden text-slate-400 hover:bg-white/5 rounded-xl transition-colors"
+            className="p-2 lg:hidden text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors"
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
@@ -331,7 +331,7 @@ export default function DashboardLayout({
             <input
               type="text"
               placeholder="Query neural network..."
-              className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-2.5 pl-12 pr-4 text-xs font-bold text-slate-300 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:bg-white/[0.05] transition-all placeholder:text-slate-600"
+              className="w-full bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 rounded-2xl py-2.5 pl-12 pr-4 text-xs font-bold text-slate-800 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-red-500/30 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
             />
           </div>
 
