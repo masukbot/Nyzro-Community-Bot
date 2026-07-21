@@ -263,25 +263,28 @@ export const api = {
     try {
       const res = await request<any>(`/guilds/${guildId}/ai`, { next: { revalidate: 0 } });
       if (!res) return initial;
+      const provs = Array.isArray(res.providers) ? res.providers : (Array.isArray(res.provider_profiles) ? res.provider_profiles : initial.providers);
+      const mods = Array.isArray(res.models) ? res.models : (Array.isArray(res.model_definitions) ? res.model_definitions : initial.models);
+      const feats = Array.isArray(res.feature_assignments) && res.feature_assignments.length > 0 ? res.feature_assignments : initial.feature_assignments;
       return {
         ...initial,
         ...res,
         stats: { ...initial.stats, ...(res.stats || {}) },
-        providers: Array.isArray(res.providers) ? res.providers : initial.providers,
-        models: Array.isArray(res.models) ? res.models : initial.models,
-        feature_assignments: Array.isArray(res.feature_assignments) ? res.feature_assignments : initial.feature_assignments,
+        providers: provs,
+        models: mods,
+        feature_assignments: feats,
         chat_channels: Array.isArray(res.chat_channels) ? res.chat_channels : [],
         personas: Array.isArray(res.personas) ? res.personas : initial.personas,
         moderation_detectors: Array.isArray(res.moderation_detectors) ? res.moderation_detectors : initial.moderation_detectors,
         automations: Array.isArray(res.automations) ? res.automations : initial.automations,
         prompts: Array.isArray(res.prompts) ? res.prompts : initial.prompts,
-        memory: { ...initial.memory, ...(res.memory || {}) },
-        vision: { ...initial.vision, ...(res.vision || {}) },
+        memory: { ...initial.memory, ...(res.memory || res.memory_config || {}) },
+        vision: { ...initial.vision, ...(res.vision || res.vision_config || {}) },
         attachment_scanner: { ...initial.attachment_scanner, ...(res.attachment_scanner || {}) },
         dm_warning: { ...initial.dm_warning, ...(res.dm_warning || {}) },
         translation: { ...initial.translation, ...(res.translation || {}) },
         ticket_form_assistant: { ...initial.ticket_form_assistant, ...(res.ticket_form_assistant || {}) },
-        failover: { ...initial.failover, ...(res.failover || {}) }
+        failover: { ...initial.failover, ...(res.failover || res.failover_config || {}) }
       };
     } catch {
       return initial;
@@ -324,7 +327,15 @@ export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfi
     },
     providers: [],
     models: [],
-    feature_assignments: [],
+    feature_assignments: [
+      { feature_key: "chat_ai", feature_name: "Chat AI", description: "Handles interactive community chat conversations in designated channels.", category: "chat", assigned_model_id: "", fallback_model_id: "", enabled: false },
+      { feature_key: "moderation_ai", feature_name: "Moderation AI", description: "Evaluates context, hate speech, and toxicity in messages.", category: "moderation", assigned_model_id: "", fallback_model_id: "", enabled: false },
+      { feature_key: "scam_image_detection", feature_name: "Scam Image Detection", description: "Scans uploaded images for QR code scams, fake gift cards, and nitro giveaways.", category: "vision", assigned_model_id: "", fallback_model_id: "", enabled: false },
+      { feature_key: "auto_moderation", feature_name: "Auto Moderation", description: "Rapid sub-second message evaluation for instant action.", category: "moderation", assigned_model_id: "", fallback_model_id: "", enabled: false },
+      { feature_key: "translation", feature_name: "Translation", description: "Multi-language real-time translation of user messages.", category: "utility", assigned_model_id: "", fallback_model_id: "", enabled: false },
+      { feature_key: "summarization", feature_name: "Summarization", description: "Generates quick recaps of active chat threads and ticket discussions.", category: "utility", assigned_model_id: "", fallback_model_id: "", enabled: false },
+      { feature_key: "ticket_form_assistant", feature_name: "Ticket Form Assistant", description: "Summarizes support tickets, suggests mod responses, and scores forms.", category: "utility", assigned_model_id: "", fallback_model_id: "", enabled: false },
+    ],
     chat_channels: [],
     personas: [],
     memory: {

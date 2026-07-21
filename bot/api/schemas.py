@@ -463,26 +463,48 @@ class AIConfigSchema(BaseModel):
     guild_id: int
     ai_enabled: bool = False
     chat_channels: List[AIChatChannelSchema] = []
+    providers: List[Dict] = []
     provider_profiles: List[Dict] = []
+    models: List[Dict] = []
     model_definitions: List[Dict] = []
     feature_assignments: List[Dict] = []
     personas: List[Dict] = []
+    memory: Dict = {}
     memory_config: Dict = {}
     moderation_detectors: List[Dict] = []
+    vision: Dict = {"enabled": False}
     vision_config: Dict = {"enabled": False}
+    attachment_scanner: Dict = {"enabled": False}
+    dm_warning: Dict = {"enabled": False}
+    translation: Dict = {"enabled": False}
+    ticket_form_assistant: Dict = {"enabled": False}
+    automations: List[Dict] = []
+    prompts: List[Dict] = []
+    failover: Dict = {"enabled": False}
     failover_config: Dict = {"enabled": False}
     budget_limit: float = 50.0
 
 class AIConfigUpdateSchema(BaseModel):
     ai_enabled: Optional[bool] = None
     chat_channels: Optional[List[AIChatChannelSchema]] = None
+    providers: Optional[List[Dict]] = None
     provider_profiles: Optional[List[Dict]] = None
+    models: Optional[List[Dict]] = None
     model_definitions: Optional[List[Dict]] = None
     feature_assignments: Optional[List[Dict]] = None
     personas: Optional[List[Dict]] = None
+    memory: Optional[Dict] = None
     memory_config: Optional[Dict] = None
     moderation_detectors: Optional[List[Dict]] = None
+    vision: Optional[Dict] = None
     vision_config: Optional[Dict] = None
+    attachment_scanner: Optional[Dict] = None
+    dm_warning: Optional[Dict] = None
+    translation: Optional[Dict] = None
+    ticket_form_assistant: Optional[Dict] = None
+    automations: Optional[List[Dict]] = None
+    prompts: Optional[List[Dict]] = None
+    failover: Optional[Dict] = None
     failover_config: Optional[Dict] = None
     budget_limit: Optional[float] = None
 

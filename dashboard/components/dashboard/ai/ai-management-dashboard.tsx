@@ -741,28 +741,34 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center gap-4">
-                      <div className="w-full sm:w-48">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Primary Model</label>
+                      <div className="w-full sm:w-56">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Primary AI Provider</label>
                         <Select
                           value={feat.assigned_model_id}
                           onValueChange={(val) => setConfig(prev => ({
                             ...prev,
                             feature_assignments: prev.feature_assignments.map(f => f.feature_key === feat.feature_key ? { ...f, assigned_model_id: val } : f)
                           }))}
-                          options={config.models.map(m => ({ value: m.id, label: `${m.model_name}` }))}
+                          options={config.providers.length > 0 ? [
+                            { value: "", label: "-- Unassigned --" },
+                            ...config.providers.map(p => ({ value: p.id, label: `${p.name}` }))
+                          ] : [{ value: "", label: "No Providers Configured" }]}
                           className="mt-1"
                         />
                       </div>
 
-                      <div className="w-full sm:w-48">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Fallback Model</label>
+                      <div className="w-full sm:w-56">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Fallback Provider</label>
                         <Select
                           value={feat.fallback_model_id}
                           onValueChange={(val) => setConfig(prev => ({
                             ...prev,
                             feature_assignments: prev.feature_assignments.map(f => f.feature_key === feat.feature_key ? { ...f, fallback_model_id: val } : f)
                           }))}
-                          options={config.models.map(m => ({ value: m.id, label: `${m.model_name}` }))}
+                          options={config.providers.length > 0 ? [
+                            { value: "", label: "-- Unassigned --" },
+                            ...config.providers.map(p => ({ value: p.id, label: `${p.name}` }))
+                          ] : [{ value: "", label: "No Providers Configured" }]}
                           className="mt-1"
                         />
                       </div>
@@ -1383,7 +1389,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                 <Select
                   value={testModelId}
                   onValueChange={setTestModelId}
-                  options={config.models.map(m => ({ value: m.id, label: m.model_name }))}
+                  options={config.providers.length > 0 ? config.providers.map(p => ({ value: p.id, label: `${p.name} (${p.default_model || p.provider_type})` })) : [{ value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Default)" }, { value: "llama-3.3-70b-versatile", label: "Groq Llama 3.3 70B" }]}
                   className="mt-1"
                 />
               </div>

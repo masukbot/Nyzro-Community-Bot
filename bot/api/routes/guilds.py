@@ -1755,18 +1755,34 @@ async def get_ai_config(guild_id: int):
         
     try:
         data = json.loads(row[1])
+        providers_list = data.get("providers") or data.get("provider_profiles", [])
+        models_list = data.get("models") or data.get("model_definitions", [])
+        memory_dict = data.get("memory") or data.get("memory_config", {})
+        vision_dict = data.get("vision") or data.get("vision_config", {})
+        failover_dict = data.get("failover") or data.get("failover_config", {})
         return AIConfigSchema(
             guild_id=guild_id,
             ai_enabled=bool(row[0]),
             chat_channels=data.get("chat_channels", []),
-            provider_profiles=data.get("provider_profiles", []),
-            model_definitions=data.get("model_definitions", []),
+            providers=providers_list,
+            provider_profiles=providers_list,
+            models=models_list,
+            model_definitions=models_list,
             feature_assignments=data.get("feature_assignments", []),
             personas=data.get("personas", []),
-            memory_config=data.get("memory_config", {"enabled": False}),
+            memory=memory_dict,
+            memory_config=memory_dict,
             moderation_detectors=data.get("moderation_detectors", []),
-            vision_config=data.get("vision_config", {"enabled": False}),
-            failover_config=data.get("failover_config", {"enabled": False}),
+            vision=vision_dict,
+            vision_config=vision_dict,
+            attachment_scanner=data.get("attachment_scanner", {}),
+            dm_warning=data.get("dm_warning", {}),
+            translation=data.get("translation", {}),
+            ticket_form_assistant=data.get("ticket_form_assistant", {}),
+            automations=data.get("automations", []),
+            prompts=data.get("prompts", []),
+            failover=failover_dict,
+            failover_config=failover_dict,
             budget_limit=data.get("budget_limit", 50.0)
         )
     except Exception:
@@ -1797,24 +1813,55 @@ async def update_ai_config(guild_id: int, data: AIConfigUpdateSchema):
 
     if data.ai_enabled is not None:
         current_enabled = data.ai_enabled
+
+    provs = data.providers if data.providers is not None else data.provider_profiles
+    if provs is not None:
+        current_json["providers"] = provs
+        current_json["provider_profiles"] = provs
+
+    mods = data.models if data.models is not None else data.model_definitions
+    if mods is not None:
+        current_json["models"] = mods
+        current_json["model_definitions"] = mods
+
     if data.chat_channels is not None:
         current_json["chat_channels"] = [c.dict() for c in data.chat_channels]
-    if data.provider_profiles is not None:
-        current_json["provider_profiles"] = data.provider_profiles
-    if data.model_definitions is not None:
-        current_json["model_definitions"] = data.model_definitions
     if data.feature_assignments is not None:
         current_json["feature_assignments"] = data.feature_assignments
     if data.personas is not None:
         current_json["personas"] = data.personas
-    if data.memory_config is not None:
-        current_json["memory_config"] = data.memory_config
+
+    mem = data.memory if data.memory is not None else data.memory_config
+    if mem is not None:
+        current_json["memory"] = mem
+        current_json["memory_config"] = mem
+
     if data.moderation_detectors is not None:
         current_json["moderation_detectors"] = data.moderation_detectors
-    if data.vision_config is not None:
-        current_json["vision_config"] = data.vision_config
-    if data.failover_config is not None:
-        current_json["failover_config"] = data.failover_config
+
+    vis = data.vision if data.vision is not None else data.vision_config
+    if vis is not None:
+        current_json["vision"] = vis
+        current_json["vision_config"] = vis
+
+    if data.attachment_scanner is not None:
+        current_json["attachment_scanner"] = data.attachment_scanner
+    if data.dm_warning is not None:
+        current_json["dm_warning"] = data.dm_warning
+    if data.translation is not None:
+        current_json["translation"] = data.translation
+    if data.ticket_form_assistant is not None:
+        current_json["ticket_form_assistant"] = data.ticket_form_assistant
+    if data.automations is not None:
+        current_json["automations"] = data.automations
+    if data.prompts is not None:
+        current_json["prompts"] = data.prompts
+
+    fo = data.failover if data.failover is not None else data.failover_config
+    if fo is not None:
+        current_json["failover"] = fo
+        current_json["failover_config"] = fo
+
     if data.budget_limit is not None:
         current_json["budget_limit"] = data.budget_limit
 
