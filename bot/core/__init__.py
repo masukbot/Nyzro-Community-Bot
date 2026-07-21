@@ -12,6 +12,6 @@
 # ║                                                                  ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
-from .zyrox import zyrox
+from .nyzro import nyzro
 from .Context import Context
 from .Cog import Cog

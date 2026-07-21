@@ -113,7 +113,7 @@ export function AdminContent() {
             </div>
             <div>
               <h1 className="text-4xl font-black text-white tracking-tight font-outfit">Admin Control Panel</h1>
-              <p className="text-slate-400 mt-2 font-medium">Restricted access for ZyroX administrators only.</p>
+              <p className="text-slate-400 mt-2 font-medium">Restricted access for Nyzro administrators only.</p>
             </div>
           </div>
           <button 

@@ -191,7 +191,7 @@ export default function DashboardLayout({
             </div>
             <div className="flex flex-col">
               <h1 className="text-lg font-bold tracking-tight text-white font-outfit leading-none">
-                {process.env.NEXT_PUBLIC_BRAND_NAME || "ZyroX"}
+                {process.env.NEXT_PUBLIC_BRAND_NAME || "Nyzro"}
               </h1>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-500/80 mt-1">
                 Dashboard

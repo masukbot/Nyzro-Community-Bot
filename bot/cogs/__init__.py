@@ -13,7 +13,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 from __future__ import annotations
-from core import zyrox
+from core import nyzro
 from colorama import Fore, Style, init
 
 
@@ -99,36 +99,36 @@ from .events.ai import AIResponses
 from .events.stickymessage import StickyMessageListener
 
 ########-------HELP-------########
-from .zyrox.antinuke import _antinuke
-from .zyrox.extra import _extra
-from .zyrox.general import _general
-from .zyrox.automod import _automod 
-from .zyrox.moderation import _moderation
-#from .zyrox.inviteTracker import _inviteTracker
-from .zyrox.music import _music
-from .zyrox.fun import _fun
-from .zyrox.games import _games
-from .zyrox.ignore import _ignore
-from .zyrox.server import _server
-from .zyrox.voice import _voice 
-from .zyrox.welcome import _welcome 
-from .zyrox.giveaway import _giveaway
-from .zyrox.ticket import _ticket
+from .nyzro.antinuke import _antinuke
+from .nyzro.extra import _extra
+from .nyzro.general import _general
+from .nyzro.automod import _automod 
+from .nyzro.moderation import _moderation
+#from .nyzro.inviteTracker import _inviteTracker
+from .nyzro.music import _music
+from .nyzro.fun import _fun
+from .nyzro.games import _games
+from .nyzro.ignore import _ignore
+from .nyzro.server import _server
+from .nyzro.voice import _voice 
+from .nyzro.welcome import _welcome 
+from .nyzro.giveaway import _giveaway
+from .nyzro.ticket import _ticket
 #from .axon.vanityroles import Vanityroles69999
-from .zyrox.logging import _logging
-from .zyrox.vanity import _vanity
-from .zyrox.inviteTracker import inviteTracker 
-from .zyrox.counting import _Counting
-from .zyrox.j2c import _J2C
-from .zyrox.ai import _ai
-from .zyrox.booster import __boost 
-from .zyrox.leveling import _leveling
-from .zyrox.sticky import _sticky
-from .zyrox.verify import _verify
-from .zyrox.encryption import _encrypt
-from .zyrox.mc import _mc
-from .zyrox.joindm import _joindm
-from .zyrox.birth import _birth
+from .nyzro.logging import _logging
+from .nyzro.vanity import _vanity
+from .nyzro.inviteTracker import inviteTracker 
+from .nyzro.counting import _Counting
+from .nyzro.j2c import _J2C
+from .nyzro.ai import _ai
+from .nyzro.booster import __boost 
+from .nyzro.leveling import _leveling
+from .nyzro.sticky import _sticky
+from .nyzro.verify import _verify
+from .nyzro.encryption import _encrypt
+from .nyzro.mc import _mc
+from .nyzro.joindm import _joindm
+from .nyzro.birth import _birth
 
 #########ANTINUKE#########
 
@@ -186,7 +186,7 @@ from .moderation.snipe import Snipe
 
 from utils.config import BotName
 
-async def setup(bot: zyrox):
+async def setup(bot: nyzro):
   cogs_to_load = [
         Help, General, Moderation, Automod, Welcomer, Fun, Games, Extra,
         Voice, Owner, Customrole, afk, Embed, Media, Ignore, TicketCog, Logging,

@@ -36,7 +36,7 @@ extensions: List[str] = [
     "cogs"
 ]
 
-class zyrox(commands.AutoShardedBot):
+class nyzro(commands.AutoShardedBot):
     def __init__(self, *arg, **kwargs):
         intents = discord.Intents.all()
         intents.presences = True
@@ -142,5 +142,5 @@ class zyrox(commands.AutoShardedBot):
 
 def setup_bot():
     intents = discord.Intents.all()
-    bot = zyrox(intents=intents)
+    bot = nyzro(intents=intents)
     return bot

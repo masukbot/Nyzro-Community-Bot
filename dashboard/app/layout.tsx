@@ -24,7 +24,7 @@ import { AuthProvider } from "@/components/auth-provider";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
-const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || "Zyrox";
+const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || "Nyzro";
 
 export const metadata: Metadata = {
   title: `${brandName} - Ultimate Discord Bot`,
