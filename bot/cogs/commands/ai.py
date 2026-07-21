@@ -1763,7 +1763,7 @@ Support server: https://discord.gg/codexdev"""
         try:
             from api.db_manager import db_manager
             db = await db_manager.get_connection('db/ai.db')
-            cursor = await db.execute("SELECT ai_enabled, config_json FROM ai_guild_configs WHERE guild_id = ?", (guild_id,))
+            cursor = await db.execute("SELECT ai_enabled, config_json FROM ai_guild_configs WHERE guild_id = ? OR guild_id = ?", (guild_id, str(guild_id)))
             row = await cursor.fetchone()
             if not row or not row[1]:
                 return
@@ -1773,7 +1773,8 @@ Support server: https://discord.gg/codexdev"""
 
             matching_ch = next((
                 c for c in chat_channels
-                if str(c.get("channel_id")) == channel_id_str and (c.get("enabled") in [True, 1, "true", "True", None])
+                if (str(c.get("channel_id")).strip() == channel_id_str or c.get("channel_id") == message.channel.id)
+                and (c.get("enabled") in [True, 1, "true", "True", None])
             ), None)
 
             if not matching_ch:
@@ -1785,9 +1786,12 @@ Support server: https://discord.gg/codexdev"""
             if mode == "mention_only" and not bot_mentioned:
                 return
 
-            prompt = message.clean_content
+            prompt = message.clean_content or message.content or ""
             if bot_mentioned and self.bot.user:
-                prompt = prompt.replace(f"@{self.bot.user.name}", "").strip()
+                prompt = prompt.replace(f"@{self.bot.user.name}", "").replace(f"<@{self.bot.user.id}>", "").strip()
+
+            if not prompt and message.attachments:
+                prompt = "Please analyze the uploaded content."
 
             if not prompt:
                 return
@@ -1807,7 +1811,7 @@ Support server: https://discord.gg/codexdev"""
             if not provider and len(providers) > 0:
                 provider = providers[0]
 
-            api_key = (provider.get("api_key") if provider else None) or os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY")
+            api_key = (provider.get("api_key") if provider else None) or os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
             endpoint = (provider.get("endpoint") if provider else "") or ""
             model_name = (provider.get("default_model") if provider else None) or "llama-3.1-8b-instant"
             provider_type = (provider.get("provider_type") if provider else "groq") or "groq"
