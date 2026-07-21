@@ -27,7 +27,13 @@ from api.schemas import (
     CustomRoleConfig, CustomRoleUpdate, AutoReactConfig, AutoReactUpdate, AutoReactTrigger,
     InvcConfig, InvcUpdate,
     RRConfig, RRUpdate, ReactionRoleEntry,
-    InviteStat, InvitesLeaderboard
+    InviteStat, InvitesLeaderboard,
+    StarboardConfig, StarboardUpdate,
+    CustomCommand, CustomCommandConfig, CustomCommandUpdate,
+    PremiumConfig, PremiumUser,
+    EconomyConfig, EconomyUser, EconomyShop, ShopItem,
+    VoiceLogConfig, VoiceLogUpdate,
+    WebhookConfig, WebhookUpdate, WebhookEvent
 )
 from typing import TYPE_CHECKING, List, Optional
 import math
@@ -1381,5 +1387,332 @@ async def patch_guild_rr(guild_id: int, data: RRUpdate):
     
     await db.commit()
     return {"status": "success"}
+
+
+# ========== STARBOARD ==========
+
+@router.get("/{guild_id}/starboard", response_model=StarboardConfig, summary="Get Starboard config")
+async def get_guild_starboard(guild_id: int):
+    """Retrieves the starboard configuration for a specific guild."""
+    db = await db_manager.get_connection("db/starboard.db")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS starboard (
+            guild_id INTEGER PRIMARY KEY,
+            enabled INTEGER DEFAULT 0,
+            channel_id INTEGER,
+            emoji TEXT DEFAULT '⭐',
+            threshold INTEGER DEFAULT 3
+        )
+    """)
+    await db.commit()
+    
+    async with db.execute("SELECT enabled, channel_id, emoji, threshold FROM starboard WHERE guild_id = ?", (guild_id,)) as cursor:
+        row = await cursor.fetchone()
+    
+    if row:
+        return StarboardConfig(
+            guild_id=guild_id,
+            enabled=bool(row[0]),
+            channel_id=row[1],
+            emoji=row[2] or "⭐",
+            threshold=row[3] or 3
+        )
+    return StarboardConfig(guild_id=guild_id)
+
+
+@router.patch("/{guild_id}/starboard", summary="Update Starboard config")
+async def patch_guild_starboard(guild_id: int, data: StarboardUpdate):
+    """Updates the starboard configuration for a specific guild."""
+    db = await db_manager.get_connection("db/starboard.db")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS starboard (
+            guild_id INTEGER PRIMARY KEY,
+            enabled INTEGER DEFAULT 0,
+            channel_id INTEGER,
+            emoji TEXT DEFAULT '⭐',
+            threshold INTEGER DEFAULT 3
+        )
+    """)
+    
+    # Get current values
+    async with db.execute("SELECT enabled, channel_id, emoji, threshold FROM starboard WHERE guild_id = ?", (guild_id,)) as cursor:
+        row = await cursor.fetchone()
+    
+    current = {
+        "enabled": row[0] if row else 0,
+        "channel_id": row[1] if row else None,
+        "emoji": row[2] if row else "⭐",
+        "threshold": row[3] if row else 3
+    }
+    
+    new_enabled = 1 if data.enabled else 0 if data.enabled is not None else current["enabled"]
+    new_channel = data.channel_id if data.channel_id is not None else current["channel_id"]
+    new_emoji = data.emoji if data.emoji is not None else current["emoji"]
+    new_threshold = data.threshold if data.threshold is not None else current["threshold"]
+    
+    await db.execute(
+        "INSERT OR REPLACE INTO starboard (guild_id, enabled, channel_id, emoji, threshold) VALUES (?, ?, ?, ?, ?)",
+        (guild_id, new_enabled, new_channel, new_emoji, new_threshold)
+    )
+    await db.commit()
+    return {"status": "success"}
+
+
+# ========== CUSTOM COMMANDS ==========
+
+@router.get("/{guild_id}/customcommands", response_model=CustomCommandConfig, summary="Get Custom Commands config")
+async def get_guild_customcommands(guild_id: int):
+    """Retrieves the custom commands for a specific guild."""
+    db = await db_manager.get_connection("db/customcmd.db")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS custom_commands (
+            guild_id INTEGER,
+            name TEXT,
+            response TEXT,
+            PRIMARY KEY (guild_id, name)
+        )
+    """)
+    await db.commit()
+    
+    async with db.execute("SELECT name, response FROM custom_commands WHERE guild_id = ?", (guild_id,)) as cursor:
+        rows = await cursor.fetchall()
+    
+    commands = [CustomCommand(name=row[0], response=row[1]) for row in rows]
+    return CustomCommandConfig(guild_id=guild_id, commands=commands)
+
+
+@router.patch("/{guild_id}/customcommands", summary="Update Custom Commands config")
+async def patch_guild_customcommands(guild_id: int, data: CustomCommandUpdate):
+    """Updates the custom commands for a specific guild."""
+    db = await db_manager.get_connection("db/customcmd.db")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS custom_commands (
+            guild_id INTEGER,
+            name TEXT,
+            response TEXT,
+            PRIMARY KEY (guild_id, name)
+        )
+    """)
+    await db.execute("DELETE FROM custom_commands WHERE guild_id = ?", (guild_id,))
+    for cmd in data.commands:
+        await db.execute(
+            "INSERT INTO custom_commands (guild_id, name, response) VALUES (?, ?, ?)",
+            (guild_id, cmd.name, cmd.response)
+        )
+    await db.commit()
+    return {"status": "success"}
+
+
+# ========== ECONOMY ==========
+
+@router.get("/{guild_id}/economy", response_model=EconomyConfig, summary="Get Economy config")
+async def get_guild_economy(guild_id: int):
+    """Retrieves the economy user data for a specific guild."""
+    db = await db_manager.get_connection("db/economy.db")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS economy (
+            guild_id INTEGER,
+            user_id INTEGER,
+            balance INTEGER DEFAULT 0,
+            bank INTEGER DEFAULT 0,
+            last_daily TEXT,
+            last_work TEXT,
+            PRIMARY KEY (guild_id, user_id)
+        )
+    """)
+    await db.commit()
+    
+    async with db.execute("SELECT user_id, balance, bank, last_daily, last_work FROM economy WHERE guild_id = ?", (guild_id,)) as cursor:
+        rows = await cursor.fetchall()
+    
+    users = [EconomyUser(
+        user_id=row[0],
+        balance=row[1] or 0,
+        bank=row[2] or 0,
+        last_daily=row[3],
+        last_work=row[4]
+    ) for row in rows]
+    return EconomyConfig(guild_id=guild_id, users=users)
+
+
+@router.get("/{guild_id}/economy/shop", response_model=EconomyShop, summary="Get Economy shop")
+async def get_guild_economy_shop(guild_id: int):
+    """Retrieves the economy shop items for a specific guild."""
+    db = await db_manager.get_connection("db/economy.db")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS shop (
+            guild_id INTEGER,
+            name TEXT,
+            price INTEGER,
+            role_id INTEGER,
+            description TEXT,
+            PRIMARY KEY (guild_id, name)
+        )
+    """)
+    await db.commit()
+    
+    async with db.execute("SELECT name, price, role_id, description FROM shop WHERE guild_id = ?", (guild_id,)) as cursor:
+        rows = await cursor.fetchall()
+    
+    items = [ShopItem(name=row[0], price=row[1], role_id=row[2], description=row[3]) for row in rows]
+    return EconomyShop(guild_id=guild_id, items=items)
+
+
+@router.patch("/{guild_id}/economy/shop", summary="Update Economy shop")
+async def patch_guild_economy_shop(guild_id: int, data: EconomyShop):
+    """Updates the economy shop items for a specific guild."""
+    db = await db_manager.get_connection("db/economy.db")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS shop (
+            guild_id INTEGER,
+            name TEXT,
+            price INTEGER,
+            role_id INTEGER,
+            description TEXT,
+            PRIMARY KEY (guild_id, name)
+        )
+    """)
+    await db.execute("DELETE FROM shop WHERE guild_id = ?", (guild_id,))
+    for item in data.items:
+        await db.execute(
+            "INSERT INTO shop (guild_id, name, price, role_id, description) VALUES (?, ?, ?, ?, ?)",
+            (guild_id, item.name, item.price, item.role_id, item.description)
+        )
+    await db.commit()
+    return {"status": "success"}
+
+
+# ========== VOICE LOG ==========
+
+@router.get("/{guild_id}/voicelog", response_model=VoiceLogConfig, summary="Get Voice Log config")
+async def get_guild_voicelog(guild_id: int):
+    """Retrieves the voice channel logging configuration for a specific guild."""
+    config_file = "jsondb/voicelog_config.json"
+    os.makedirs("jsondb", exist_ok=True)
+    
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r") as f:
+                content = f.read().strip()
+                if content:
+                    data = json.loads(content)
+                    if isinstance(data, dict):
+                        config = data.get(str(guild_id), {})
+                        return VoiceLogConfig(
+                            guild_id=guild_id,
+                            enabled=config.get("enabled", False),
+                            channel_id=config.get("channel_id")
+                        )
+        except (json.JSONDecodeError, Exception):
+            pass
+    
+    return VoiceLogConfig(guild_id=guild_id)
+
+
+@router.patch("/{guild_id}/voicelog", summary="Update Voice Log config")
+async def patch_guild_voicelog(guild_id: int, data: VoiceLogUpdate):
+    """Updates the voice channel logging configuration for a specific guild."""
+    config_file = "jsondb/voicelog_config.json"
+    os.makedirs("jsondb", exist_ok=True)
+    
+    all_configs = {}
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r") as f:
+                content = f.read().strip()
+                if content:
+                    all_configs = json.loads(content)
+                    if not isinstance(all_configs, dict):
+                        all_configs = {}
+        except (json.JSONDecodeError, Exception):
+            all_configs = {}
+    
+    current = all_configs.get(str(guild_id), {})
+    if data.enabled is not None:
+        current["enabled"] = data.enabled
+    if data.channel_id is not None:
+        current["channel_id"] = data.channel_id
+    
+    all_configs[str(guild_id)] = current
+    
+    with open(config_file, "w") as f:
+        json.dump(all_configs, f, indent=2)
+    
+    return {"status": "success"}
+
+
+# ========== WEBHOOKS ==========
+
+WEBHOOK_EVENTS_FILE = "jsondb/webhooks.json"
+
+def _load_webhooks() -> dict:
+    os.makedirs("jsondb", exist_ok=True)
+    if os.path.exists(WEBHOOK_EVENTS_FILE):
+        try:
+            with open(WEBHOOK_EVENTS_FILE, "r") as f:
+                content = f.read().strip()
+                if content:
+                    return json.loads(content)
+        except (json.JSONDecodeError, Exception):
+            pass
+    return {}
+
+def _save_webhooks(data: dict):
+    with open(WEBHOOK_EVENTS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+@router.get("/{guild_id}/webhooks", summary="List guild webhooks")
+async def list_guild_webhooks(guild_id: int):
+    """List all configured webhooks for a specific guild."""
+    all_webhooks = _load_webhooks()
+    return {"webhooks": all_webhooks.get(str(guild_id), [])}
+
+
+@router.post("/{guild_id}/webhooks", summary="Add a guild webhook")
+async def add_guild_webhook(guild_id: int, data: WebhookConfig):
+    """Add or update a webhook for a specific guild."""
+    all_webhooks = _load_webhooks()
+    guild_webhooks = all_webhooks.get(str(guild_id), [])
+    guild_webhooks.append({"url": data.url, "events": data.events})
+    all_webhooks[str(guild_id)] = guild_webhooks
+    _save_webhooks(all_webhooks)
+    return {"status": "success"}
+
+
+@router.delete("/{guild_id}/webhooks", summary="Delete a guild webhook")
+async def delete_guild_webhook(guild_id: int, url: str):
+    """Delete a webhook URL for a specific guild."""
+    all_webhooks = _load_webhooks()
+    guild_webhooks = all_webhooks.get(str(guild_id), [])
+    guild_webhooks = [w for w in guild_webhooks if w.get("url") != url]
+    all_webhooks[str(guild_id)] = guild_webhooks
+    _save_webhooks(all_webhooks)
+    return {"status": "success"}
+
+
+async def dispatch_webhook_event(guild_id: int, event: str, data: dict):
+    """Helper to send webhook events for a guild. Called by bot cogs."""
+    all_webhooks = _load_webhooks()
+    guild_webhooks = all_webhooks.get(str(guild_id), [])
+    
+    if not guild_webhooks:
+        return
+    
+    import aiohttp
+    import time as time_mod
+    payload = WebhookEvent(
+        event=event,
+        guild_id=guild_id,
+        timestamp=time_mod.strftime('%Y-%m-%dT%H:%M:%S'),
+        data=data
+    ).dict()
+    
+    async with aiohttp.ClientSession() as session:
+        for webhook in guild_webhooks:
+            if event in webhook.get("events", []):
+                try:
+                    await session.post(webhook["url"], json=payload, timeout=aiohttp.ClientTimeout(total=5))
+                except Exception:
+                    pass
 
 

@@ -17,7 +17,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Users, ShieldCheck, ChevronRight, Hash } from "lucide-react";
+import { Users, ShieldCheck, ChevronRight, Hash, PlusCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +28,8 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const BOT_INVITE_URL = "https://discord.com/oauth2/authorize?client_id=1529198352606953542&permissions=8&integration_type=0&scope=bot+applications.commands";
 
 export default async function GuildsPage() {
   const session = await getServerSession(authOptions);
@@ -67,7 +69,6 @@ export default async function GuildsPage() {
   }
 
   // Filter out guilds that the user is an admin of (permission flag 0x8 or MANAGE_GUILD 0x20)
-  // Manage Server is 0x20, Admin is 0x8
   const MANAGE_GUILD = BigInt(0x20);
   const ADMINISTRATOR = BigInt(0x8);
   const adminUserGuilds = userGuilds.filter(g => {
@@ -87,18 +88,28 @@ export default async function GuildsPage() {
   const guilds = botGuilds.filter(g => adminGuildIds.has(String(g.id)));
   const error = botError || userDiscordError;
 
-
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-end">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Bar with Add to Server Button */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Your Servers</h1>
-          <p className="text-slate-400 mt-2">
-            Select a server to manage its unique configuration and modules.
+          <h1 className="text-3xl font-black text-white font-outfit tracking-tight">Your Servers</h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Select a server to manage its unique AI configuration, security, and modules.
           </p>
         </div>
-        <div className="text-sm font-medium px-4 py-2 bg-slate-800 rounded-xl border border-slate-700 text-slate-300">
-          Showing <span className="text-white">{guilds.length}</span> active guilds
+
+        <div className="flex items-center gap-3">
+          <div className="text-xs font-bold px-3 py-2 bg-slate-900 rounded-xl border border-slate-800 text-slate-300">
+            Showing <span className="text-white font-mono">{guilds.length}</span> active guilds
+          </div>
+
+          <a href={BOT_INVITE_URL} target="_blank" rel="noreferrer">
+            <Button className="h-11 px-5 rounded-xl bg-primary hover:bg-red-600 text-white font-bold text-xs gap-2 shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] active:scale-95">
+              <PlusCircle className="h-4 w-4" />
+              <span>Add to Server</span>
+            </Button>
+          </a>
         </div>
       </div>
 
@@ -116,32 +127,24 @@ export default async function GuildsPage() {
           </div>
           <h3 className="text-white font-bold text-xl">No Servers Found</h3>
           <p className="text-slate-400 mt-2 max-w-sm mx-auto">
-            The bot hasn&apos;t joined any servers yet, or you don&apos;t have permission.
+            The bot hasn&apos;t joined any servers yet, or you don&apos;t have admin permission on any server.
           </p>
-          <div className="mt-8 bg-slate-900/50 p-4 rounded-xl text-left font-mono text-sm text-slate-300 max-w-2xl mx-auto overflow-auto max-h-48 whitespace-pre">
-            <p className="font-bold text-red-400 mb-2">Diagnostic Data:</p>
-            <p>1. Bot&apos;s Cache Total Servers: {botGuilds.length}</p>
-            <p>2. Your Discord Profile Total Servers: {userGuilds.length}</p>
-            <p>3. Your Discord Profile Admin/Manage Servers: {adminUserGuilds.length}</p>
-            {botGuilds.length > 0 && adminUserGuilds.length > 0 && (
-               <div className="mt-4 pt-4 border-t border-white/10">
-                 <p className="text-emerald-400 mb-1">Bot First Server ID: {botGuilds[0].id} (Type: {typeof botGuilds[0].id})</p>
-                 <p className="text-blue-400">Your First Admin Server ID: {adminUserGuilds[0].id} (Type: {typeof adminUserGuilds[0].id})</p>
-               </div>
-            )}
-            <hr className="my-2 border-white/10" />
-            <p>Intersection Mappings found: {guilds.length}</p>
-            {userDiscordError && <p className="text-red-400">User Error: {userDiscordError}</p>}
-            {botError && <p className="text-red-400">Bot Error: {botError}</p>}
+
+          <div className="mt-8 flex justify-center">
+            <a href={BOT_INVITE_URL} target="_blank" rel="noreferrer">
+              <Button className="h-12 px-8 rounded-xl bg-primary hover:bg-red-600 text-white font-bold gap-2 shadow-xl shadow-red-500/20">
+                <PlusCircle className="h-5 w-5" />
+                Add Bot to Discord Server
+              </Button>
+            </a>
           </div>
-          <Button className="mt-8">Invite to Discord</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {guilds.map((guild) => (
             <div 
               key={guild.id} 
-              className="bg-[#141B2D] border border-slate-800 rounded-3xl group hover:border-primary/50 hover:bg-[#202c3f] transition-all duration-300 overflow-hidden shadow-sm hover:shadow-primary/5 shadow-black/20"
+              className="bg-[#141B2D] border border-slate-800 rounded-3xl group hover:border-primary/50 hover:bg-[#1a2336] transition-all duration-300 overflow-hidden shadow-sm hover:shadow-primary/5 shadow-black/20"
             >
               <div className="p-6">
                 <div className="flex items-start justify-between mb-6">

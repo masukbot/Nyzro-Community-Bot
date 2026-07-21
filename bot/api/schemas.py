@@ -344,3 +344,106 @@ class AdminConfig(BaseModel):
 class AdminConfigUpdate(BaseModel):
     maintenance_mode: Optional[bool] = None
     global_notification: Optional[str] = None
+
+# --- Starboard Schemas ---
+
+class StarboardConfig(BaseModel):
+    guild_id: int
+    enabled: bool = False
+    channel_id: Optional[int] = None
+    emoji: str = "⭐"
+    threshold: int = 3
+
+class StarboardUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    channel_id: Optional[int] = None
+    emoji: Optional[str] = None
+    threshold: Optional[int] = None
+
+# --- Custom Commands Schemas ---
+
+class CustomCommand(BaseModel):
+    name: str
+    response: str
+
+class CustomCommandConfig(BaseModel):
+    guild_id: int
+    commands: List[CustomCommand] = []
+
+class CustomCommandUpdate(BaseModel):
+    commands: List[CustomCommand]
+
+# --- Premium Schemas ---
+
+class PremiumUser(BaseModel):
+    user_id: int
+    expires_at: Optional[str] = None
+    is_premium: bool
+
+class PremiumConfig(BaseModel):
+    guild_id: int
+    premium_users: List[PremiumUser] = []
+
+# --- Economy Schemas ---
+
+class EconomyUser(BaseModel):
+    user_id: int
+    balance: int
+    bank: int
+    last_daily: Optional[str] = None
+    last_work: Optional[str] = None
+
+class EconomyConfig(BaseModel):
+    guild_id: int
+    users: List[EconomyUser] = []
+
+class ShopItem(BaseModel):
+    name: str
+    price: int
+    role_id: Optional[int] = None
+    description: Optional[str] = None
+
+class EconomyShop(BaseModel):
+    guild_id: int
+    items: List[ShopItem] = []
+
+# --- Voice Log Schemas ---
+
+class VoiceLogConfig(BaseModel):
+    guild_id: int
+    enabled: bool = False
+    channel_id: Optional[int] = None
+
+class VoiceLogUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    channel_id: Optional[int] = None
+
+# --- Webhook Schemas ---
+
+class WebhookConfig(BaseModel):
+    guild_id: int
+    url: str
+    events: List[str] = []  # e.g. ["member_join", "message_delete"]
+
+class WebhookUpdate(BaseModel):
+    url: Optional[str] = None
+    events: Optional[List[str]] = None
+
+class WebhookEvent(BaseModel):
+    event: str
+    guild_id: int
+    timestamp: str
+    data: Dict
+
+# --- Auth Token Schemas ---
+
+class AuthToken(BaseModel):
+    token: str
+    name: str
+    created_at: str
+    last_used: Optional[str] = None
+    scopes: List[str] = []
+
+class AuthTokenCreate(BaseModel):
+    name: str
+    scopes: List[str] = []

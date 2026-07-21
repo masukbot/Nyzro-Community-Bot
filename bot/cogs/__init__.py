@@ -83,6 +83,11 @@ from .commands.Birthday import Birthdays
 from .commands.nitro import Nitro
 from .commands.image import ImageCommands
 from .commands.youtube import Youtube
+from .commands.starboard import Starboard
+from .commands.voicelog import VoiceLog
+from .commands.economy import Economy
+from .commands.customcommands import CustomCommands
+from .commands.premium import Premium
 #____________ Events _____________
 
 #from .events.autoblacklist import AutoBlacklist
@@ -260,8 +265,13 @@ async def setup(bot: nyzro):
   await bot.add_cog(joindm(bot))
   await bot.add_cog(Birthdays(bot))
   await bot.add_cog(Nitro(bot))
-  await bot.add_cog(ImageCommands(bot))
-  await bot.add_cog(Youtube(bot))
+    await bot.add_cog(ImageCommands(bot))
+    await bot.add_cog(Youtube(bot))
+    await bot.add_cog(Starboard(bot))
+    await bot.add_cog(VoiceLog(bot))
+    await bot.add_cog(Economy(bot))
+    await bot.add_cog(CustomCommands(bot))
+    await bot.add_cog(Premium(bot))
 
   await bot.add_cog(_antinuke(bot))
   await bot.add_cog(_extra(bot))

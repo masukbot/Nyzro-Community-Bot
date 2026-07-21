@@ -14,44 +14,34 @@
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
-import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
-import "./globals.css";
+import React from "react";
+import { Star } from "lucide-react";
+import dynamic from "next/dynamic";
+import { api } from "@/lib/api";
 
-import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/components/auth-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+const StarboardForm = dynamic(() => import("@/components/dashboard/starboard-form").then(mod => mod.StarboardForm), {
+  loading: () => <div className="h-96 w-full animate-pulse bg-slate-800/20 rounded-3xl" />
+});
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+export default async function StarboardPage({ params }: { params: { guildId: string } }) {
+  const [starboardData, channelsData] = await Promise.all([
+    api.getStarboard(params.guildId),
+    api.getChannels(params.guildId)
+  ]);
 
-const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || "Nyzro";
-
-export const metadata: Metadata = {
-  title: `${brandName} - Ultimate Discord Bot`,
-  description: "Advanced Discord community management and security.",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable}`} suppressHydrationWarning>
-      <body className="font-sans antialiased text-slate-900 dark:text-slate-200 bg-white dark:bg-slate-950">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            {children}
-            <Toaster />
-          </AuthProvider>
-        </ThemeProvider>
-      </body>
-    </html>
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Star className="h-6 w-6 text-primary" />
+            Starboard
+          </h2>
+          <p className="text-slate-400 mt-1">Configure your server&apos;s starboard.</p>
+        </div>
+      </div>
+
+      <StarboardForm initialConfig={starboardData} channels={channelsData} guildId={params.guildId} />
+    </div>
   );
 }

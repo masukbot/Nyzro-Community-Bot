@@ -16,188 +16,589 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  Bot, 
-  ChevronLeft, 
-  Search, 
-  ShieldCheck, 
-  Zap, 
-  Activity, 
-  Layers, 
+import { signIn } from "next-auth/react";
+import {
+  Bot,
+  Search,
   Sparkles,
-  Search as SearchIcon,
+  Zap,
+  ShieldCheck,
+  Cpu,
+  Terminal,
+  HelpCircle,
   BookOpen,
+  ChevronRight,
+  ChevronDown,
+  Clock,
+  User,
+  Calendar,
+  Bookmark,
+  ThumbsUp,
+  ThumbsDown,
+  Share2,
+  Copy,
+  Check,
+  Edit3,
+  Globe,
+  ExternalLink,
   Menu,
-  X
+  X,
+  ArrowLeft,
+  ArrowRight,
+  Flame,
+  Star,
+  Activity,
+  Layers
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
-const DOCS_NAV = [
-  {
-    title: "Getting Started",
-    items: [
-      { name: "Introduction", description: "Learn about the Neural Core." },
-      { name: "Quick Start", description: "Deploy in 30 seconds." },
-      { name: "Architecture", description: "Deep dive into our engine." }
-    ]
-  },
-  {
-    title: "Security Modules",
-    items: [
-      { name: "Anti-Nuke", description: "Absolute lockdown protocols." },
-      { name: "Verification", description: "Captcha & Neural checks." },
-      { name: "Automod", description: "Context-aware AI filtering." }
-    ]
-  },
-  {
-    title: "Management",
-    items: [
-      { name: "Join to Create", description: "Dynamic voice channels." },
-      { name: "Leveling", description: "Cinematic rank generation." },
-      { name: "Tickets", description: "Enterprise helpdesk." }
-    ]
-  }
-];
+import { INITIAL_CATEGORIES, INITIAL_ARTICLES, DocArticle } from "@/lib/docs-data";
+import { GlobalSearchModal } from "@/components/docs/global-search-modal";
+import { AiSearchModal } from "@/components/docs/ai-search-modal";
+import { CommandBlock } from "@/components/docs/command-block";
+import { ApiExplorer } from "@/components/docs/api-explorer";
+import { TroubleshootWizard } from "@/components/docs/troubleshoot-wizard";
+import { CmsEditorModal } from "@/components/docs/cms-editor-modal";
 
-export default function DocsPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Introduction");
+export default function DocumentationPlatformPage() {
+  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+  const [articles, setArticles] = useState<Record<string, DocArticle>>(INITIAL_ARTICLES);
+  const [activeSlug, setActiveSlug] = useState<string>("intro");
+  
+  // Sidebar expand states
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    "getting-started": true,
+    "moderation-security": true,
+    "ai-features": true,
+    "developer-api": true,
+    "resources": true
+  });
+
+  // Favorites & Bookmarks State
+  const [favorites, setFavorites] = useState<string[]>(["intro", "anti-nuke"]);
+  const [recentlyViewed, setRecentlyViewed] = useState<string[]>(["quickstart", "ai-overview"]);
+  const [likesCount, setLikesCount] = useState<number>(42);
+  const [hasLiked, setHasLiked] = useState<boolean>(false);
+
+  // Modals state
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [isCmsOpen, setIsCmsOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // General state
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState("v2.4.0 (Latest)");
+
+  const currentArticle = articles[activeSlug] || articles["intro"];
+
+  // Category Icon Renderer
+  const getCategoryIcon = (iconName: string) => {
+    switch (iconName) {
+      case "Zap": return <Zap className="h-4 w-4 text-red-500" />;
+      case "ShieldCheck": return <ShieldCheck className="h-4 w-4 text-red-500" />;
+      case "Cpu": return <Cpu className="h-4 w-4 text-red-500" />;
+      case "Terminal": return <Terminal className="h-4 w-4 text-red-500" />;
+      default: return <HelpCircle className="h-4 w-4 text-red-500" />;
+    }
+  };
+
+  const handleSelectArticle = (slug: string) => {
+    setActiveSlug(slug);
+    if (!recentlyViewed.includes(slug)) {
+      setRecentlyViewed(prev => [slug, ...prev.slice(0, 3)]);
+    }
+    setMobileSidebarOpen(false);
+  };
+
+  const toggleFavorite = (slug: string) => {
+    setFavorites(prev => 
+      prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]
+    );
+  };
+
+  const handleCopyLink = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleUpdateArticle = (updated: DocArticle) => {
+    setArticles(prev => ({ ...prev, [updated.slug]: updated }));
+  };
+
+  // Find previous and next articles
+  const allSlugs = categories.flatMap(c => c.items.map(i => i.slug));
+  const currentIndex = allSlugs.indexOf(activeSlug);
+  const prevSlug = currentIndex > 0 ? allSlugs[currentIndex - 1] : null;
+  const nextSlug = currentIndex < allSlugs.length - 1 ? allSlugs[currentIndex + 1] : null;
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 font-sans">
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-red-500/[0.02] blur-[150px] rounded-full" />
-      </div>
+    <div className="min-h-screen bg-[#05060a] text-slate-300 font-sans selection:bg-red-500/30 selection:text-white">
+      {/* Search Modals */}
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectArticle={handleSelectArticle}
+      />
+      <AiSearchModal
+        isOpen={isAiOpen}
+        onClose={() => setIsAiOpen(false)}
+      />
+      <CmsEditorModal
+        isOpen={isCmsOpen}
+        onClose={() => setIsCmsOpen(false)}
+        article={currentArticle}
+        onSaveArticle={handleUpdateArticle}
+      />
 
-      {/* Nav */}
-      <nav className="fixed top-0 w-full z-50 border-b border-white/[0.03] bg-[#020617]/80 backdrop-blur-3xl px-6 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-4 group">
-            <div className="h-8 w-8 rounded-lg bg-red-600 flex items-center justify-center mr-3">
+      {/* TOP STICKY NAVBAR */}
+      <nav className="sticky top-0 z-40 h-16 bg-[#0b0e18]/80 backdrop-blur-xl border-b border-white/10 px-6 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-500/20 group-hover:scale-105 transition-transform">
               <Bot className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-white font-outfit uppercase tracking-tighter hidden md:block">Nyzro Docs</span>
+            <div className="flex flex-col">
+              <span className="text-base font-black text-white font-display tracking-tight flex items-center gap-2">
+                NYZRO <span className="text-red-500 font-mono text-xs">DOCS</span>
+              </span>
+              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest hidden sm:inline-block">Neural Shard Documentation</span>
+            </div>
           </Link>
-          
-          <div className="hidden lg:flex items-center w-80 relative group">
-            <SearchIcon className="absolute left-4 h-4 w-4 text-slate-500 group-focus-within:text-red-500 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Search documentation..."
-              className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-2.5 pl-12 pr-4 text-xs font-bold text-slate-300 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:bg-white/[0.05] transition-all"
-            />
-          </div>
+
+          {/* Cmd+K Search Bar Trigger */}
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="hidden md:flex items-center gap-3 bg-white/[0.03] border border-white/10 hover:border-red-500/30 rounded-xl px-4 py-2 text-xs text-slate-400 hover:text-slate-200 transition-all w-72"
+          >
+            <Search className="h-3.5 w-3.5 text-red-500" />
+            <span className="flex-1 text-left">Search docs, API, commands...</span>
+            <kbd className="font-mono text-[10px] bg-white/10 px-2 py-0.5 rounded text-slate-300">Ctrl K</kbd>
+          </button>
         </div>
 
-        <div className="flex items-center gap-4">
-           <button 
-             className="lg:hidden p-2 text-slate-400"
-             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-           >
-             {isSidebarOpen ? <X /> : <Menu />}
-           </button>
-           <Link href="/">
-            <Button variant="ghost" className="text-slate-400 hover:text-white gap-2 text-xs font-black uppercase tracking-widest">
-              Exit Docs
-            </Button>
-          </Link>
+        <div className="flex items-center gap-3">
+          {/* AI Search Floating Button */}
+          <button
+            onClick={() => setIsAiOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-500/20 to-red-700/20 border border-red-500/40 text-red-400 hover:text-white font-mono text-xs font-bold shadow-lg shadow-red-500/10 transition-all hover:scale-105"
+          >
+            <Sparkles className="h-4 w-4 animate-pulse" />
+            <span className="hidden sm:inline">Ask AI Assistant</span>
+          </button>
+
+          {/* Version Selector */}
+          <select
+            value={selectedVersion}
+            onChange={(e) => setSelectedVersion(e.target.value)}
+            className="hidden lg:block bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-slate-300 font-mono focus:outline-none"
+          >
+            <option value="v2.4.0 (Latest)">v2.4.0 (Latest)</option>
+            <option value="v2.3.5">v2.3.5</option>
+            <option value="v2.0.0">v2.0.0</option>
+          </select>
+
+          {/* Admin CMS Trigger Button */}
+          <button
+            onClick={() => setIsCmsOpen(true)}
+            className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-mono font-semibold transition-colors"
+            title="Edit Document via CMS"
+          >
+            <Edit3 className="h-3.5 w-3.5 text-red-500" />
+            <span>CMS Editor</span>
+          </button>
+
+          <a href="https://discord.gg/codexdev" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-white p-2 hidden sm:block">
+            <ExternalLink className="h-4 w-4" />
+          </a>
+
+          <button
+            onClick={() => signIn("discord", { callbackUrl: "/dashboard" })}
+            className="px-4 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-lg shadow-red-500/20 transition-all"
+          >
+            Console Login
+          </button>
+
+          {/* Mobile Sidebar Toggle */}
+          <button
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            className="lg:hidden p-2 text-slate-400 hover:text-white"
+          >
+            {mobileSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto flex pt-20">
-        {/* Sidebar */}
-        <aside className={cn(
-          "fixed inset-y-0 left-0 z-40 w-80 bg-[#020617] border-r border-white/5 pt-20 transition-transform lg:translate-x-0 lg:static lg:bg-transparent",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}>
-          <div className="h-full p-8 overflow-y-auto no-scrollbar">
-            {DOCS_NAV.map((section) => (
-              <div key={section.title} className="mb-10">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 mb-6">{section.title}</h4>
+      {/* 3-COLUMN MAIN LAYOUT */}
+      <div className="max-w-[1536px] mx-auto flex min-h-[calc(100vh-64px)]">
+        
+        {/* LEFT SIDEBAR COLUMN */}
+        <aside className={`
+          fixed lg:sticky top-16 z-30 w-80 h-[calc(100vh-64px)] bg-[#080b13] border-r border-white/10 overflow-y-auto p-5 no-scrollbar transition-transform lg:translate-x-0
+          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}>
+          <div className="space-y-6">
+            {/* Quick Search on Mobile */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="w-full flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-400"
+              >
+                <Search className="h-4 w-4 text-red-500" />
+                <span>Search Documentation...</span>
+              </button>
+            </div>
+
+            {/* Categories & Nested Items */}
+            {categories.map((cat) => {
+              const isExpanded = expandedCategories[cat.id] ?? true;
+              return (
+                <div key={cat.id} className="space-y-2">
+                  <button
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, [cat.id]: !isExpanded }))}
+                    className="w-full flex items-center justify-between text-left py-1 text-slate-400 hover:text-white transition-colors"
+                  >
+                    <div className="flex items-center gap-2 font-display text-xs font-bold uppercase tracking-wider text-slate-400">
+                      {getCategoryIcon(cat.icon)}
+                      <span>{cat.name}</span>
+                    </div>
+                    {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="pl-6 space-y-1 border-l border-white/5">
+                      {cat.items.map((item) => {
+                        const isActive = activeSlug === item.slug;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => handleSelectArticle(item.slug)}
+                            className={`
+                              w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-all
+                              ${isActive 
+                                ? "bg-red-500/10 border border-red-500/30 text-red-400 shadow-lg shadow-red-500/5" 
+                                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]"}
+                            `}
+                          >
+                            <span className="truncate">{item.title}</span>
+                            {item.difficulty && (
+                              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                                item.difficulty === "Developer" ? "bg-purple-500/20 text-purple-400" :
+                                item.difficulty === "Advanced" ? "bg-red-500/20 text-red-400" :
+                                "bg-slate-800 text-slate-400"
+                              }`}>
+                                {item.difficulty[0]}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Bookmarks Section */}
+            {favorites.length > 0 && (
+              <div className="pt-4 border-t border-white/5 space-y-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block flex items-center gap-1.5">
+                  <Bookmark className="h-3.5 w-3.5 text-amber-500" /> Bookmarks
+                </span>
                 <div className="space-y-1">
-                  {section.items.map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => {
-                        setActiveTab(item.name);
-                        setIsSidebarOpen(false);
-                      }}
-                      className={cn(
-                        "w-full flex flex-col items-start gap-1 p-4 rounded-2xl transition-all text-left",
-                        activeTab === item.name 
-                          ? "bg-red-500/10 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.05)]" 
-                          : "hover:bg-white/[0.02] border border-transparent"
-                      )}
-                    >
-                      <span className={cn("text-sm font-bold", activeTab === item.name ? "text-red-500" : "text-slate-300")}>{item.name}</span>
-                      <span className="text-[10px] text-slate-600 font-bold uppercase tracking-tight">{item.description}</span>
-                    </button>
-                  ))}
+                  {favorites.map(favSlug => {
+                    const art = articles[favSlug];
+                    if (!art) return null;
+                    return (
+                      <button
+                        key={favSlug}
+                        onClick={() => handleSelectArticle(favSlug)}
+                        className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white truncate block hover:bg-white/5 font-mono"
+                      >
+                        • {art.title}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Recently Viewed */}
+            {recentlyViewed.length > 0 && (
+              <div className="pt-4 border-t border-white/5 space-y-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" /> Recently Viewed
+                </span>
+                <div className="space-y-1">
+                  {recentlyViewed.map(rvSlug => {
+                    const art = articles[rvSlug];
+                    if (!art) return null;
+                    return (
+                      <button
+                        key={rvSlug}
+                        onClick={() => handleSelectArticle(rvSlug)}
+                        className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white truncate block hover:bg-white/5 font-mono"
+                      >
+                        • {art.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </aside>
 
-        {/* Content */}
-        <main className="flex-1 p-8 lg:p-16 relative z-10 max-w-4xl">
-           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest mb-8">
-            <BookOpen className="h-3 w-3" />
-            V2.4 Runtime Environment
+        {/* CENTER MAIN CONTENT COLUMN */}
+        <main className="flex-1 p-6 lg:p-12 max-w-4xl mx-auto overflow-y-auto">
+          {/* Breadcrumb Trail */}
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 mb-6">
+            <Link href="/" className="hover:text-slate-300">Docs</Link>
+            <span>/</span>
+            <span className="text-slate-400">{currentArticle.category}</span>
+            <span>/</span>
+            <span className="text-red-400 font-bold">{currentArticle.title}</span>
           </div>
 
-          <h1 className="text-6xl font-bold text-white font-outfit tracking-tighter uppercase mb-8 italic">
-            {activeTab}<span className="text-red-500 not-italic">.</span>
-          </h1>
+          {/* Article Header */}
+          <div className="space-y-4 mb-8 pb-8 border-b border-white/10">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono font-bold">
+                {currentArticle.difficulty || "Beginner"}
+              </span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 text-slate-400 text-xs font-mono flex items-center gap-1">
+                <Clock className="h-3 w-3" /> {currentArticle.readTime}
+              </span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 text-slate-400 text-xs font-mono flex items-center gap-1">
+                <User className="h-3 w-3" /> {currentArticle.author}
+              </span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 text-slate-400 text-xs font-mono flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Updated {currentArticle.updatedAt}
+              </span>
+            </div>
 
-          <div className="prose prose-invert max-w-none">
-             <p className="text-lg text-slate-400 mb-12 leading-relaxed">
-               Welcome to the {activeTab} section of the Nyzro Engine documentation. Our engine is designed for communities that demand absolute performance and cinematic management tools.
-             </p>
+            <h1 className="text-4xl lg:text-5xl font-extrabold text-white font-display tracking-tight">
+              {currentArticle.title}
+            </h1>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-8 rounded-[32px] glass border-white/5 space-y-4">
-                   <Zap className="h-6 w-6 text-red-500" />
-                   <h3 className="text-xl font-bold text-white font-outfit uppercase">Fast Dispatch</h3>
-                   <p className="text-sm text-slate-500 font-bold uppercase tracking-tight">Commands are dispatched via our global edge network in under 12ms.</p>
-                </div>
-                <div className="p-8 rounded-[32px] glass border-white/5 space-y-4">
-                   <ShieldCheck className="h-6 w-6 text-emerald-500" />
-                   <h3 className="text-xl font-bold text-white font-outfit uppercase">Secure Node</h3>
-                   <p className="text-sm text-slate-500 font-bold uppercase tracking-tight">Every module runs in a dedicated neural sandbox with AES-256 encryption.</p>
-                </div>
-             </div>
+            <p className="text-base text-slate-300 leading-relaxed font-sans">
+              {currentArticle.description}
+            </p>
 
-             <div className="p-8 rounded-[40px] bg-red-500/[0.02] border border-red-500/10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-10">
-                   <Layers className="h-32 w-32 text-red-500" />
-                </div>
-                <h2 className="text-2xl font-bold text-white font-outfit uppercase tracking-tight mb-4">Neural Architecture</h2>
-                  <h3 className="text-white font-bold">Protocol Overview</h3>
-                <p className="text-slate-500 font-bold leading-relaxed mb-8">
-                  The Nyzro Engine utilizes a decentralized event stream processing model. When a Discord event is received, it is instantly routed to the nearest edge cluster.
-                </p>
-                <div className="bg-black/40 p-6 rounded-2xl border border-white/5 font-mono text-sm text-red-500 mb-8">
-                  $ nyzro initialize --cluster-shard [neural_07] --mode enterprise
-                </div>
-             </div>
+            {/* Action Bar */}
+            <div className="flex items-center gap-4 pt-2">
+              <button
+                onClick={() => toggleFavorite(currentArticle.slug)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all ${
+                  favorites.includes(currentArticle.slug)
+                    ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
+                    : "bg-white/5 border-white/10 text-slate-400 hover:text-white"
+                }`}
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                <span>{favorites.includes(currentArticle.slug) ? "Bookmarked" : "Bookmark"}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setLikesCount(l => l + (hasLiked ? -1 : 1));
+                  setHasLiked(!hasLiked);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all ${
+                  hasLiked
+                    ? "bg-red-500/20 border-red-500/40 text-red-400"
+                    : "bg-white/5 border-white/10 text-slate-400 hover:text-white"
+                }`}
+              >
+                <ThumbsUp className="h-3.5 w-3.5" />
+                <span>{likesCount} Likes</span>
+              </button>
+
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white text-xs font-mono font-bold transition-all"
+              >
+                {copiedLink ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copiedLink ? "Link Copied!" : "Copy Page Link"}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="mt-20 pt-12 border-t border-white/5 flex items-center justify-between">
-             <div>
-                <p className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] mb-2">Internal Ref</p>
-                <p className="text-sm font-bold text-slate-400">DOC-ID: CX_7749_B</p>
-             </div>
-             <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase text-red-500 tracking-[0.2em]">Live Stream Active</span>
-             </div>
+          {/* Dynamic Content Blocks Rendering */}
+          <div className="space-y-6">
+            {currentArticle.contentBlocks.map((block, idx) => {
+              if (block.type === "text") {
+                return (
+                  <p key={idx} className="text-slate-300 text-sm leading-relaxed whitespace-pre-line font-sans">
+                    {block.text}
+                  </p>
+                );
+              }
+
+              if (block.type === "heading") {
+                return (
+                  <h2 key={idx} className="text-2xl font-bold text-white font-display tracking-tight pt-4 border-t border-white/5">
+                    {block.title}
+                  </h2>
+                );
+              }
+
+              if (block.type === "alert") {
+                const alertStyle = 
+                  block.variant === "danger" ? "bg-red-500/10 border-red-500/30 text-red-200" :
+                  block.variant === "warning" ? "bg-amber-500/10 border-amber-500/30 text-amber-200" :
+                  block.variant === "success" ? "bg-green-500/10 border-green-500/30 text-green-200" :
+                  "bg-blue-500/10 border-blue-500/30 text-blue-200";
+
+                return (
+                  <div key={idx} className={`p-4 rounded-xl border ${alertStyle} space-y-1 my-4`}>
+                    {block.title && <b className="block text-xs font-mono font-bold uppercase">{block.title}</b>}
+                    <p className="text-xs font-sans">{block.text}</p>
+                  </div>
+                );
+              }
+
+              if (block.type === "code") {
+                return (
+                  <div key={idx} className="my-6 rounded-xl bg-[#080a12] border border-white/10 overflow-hidden font-mono text-xs">
+                    {block.filename && (
+                      <div className="px-4 py-2 bg-white/5 border-b border-white/5 text-slate-400 text-[11px]">
+                        {block.filename}
+                      </div>
+                    )}
+                    <pre className="p-4 text-green-400 overflow-x-auto">
+                      {block.code}
+                    </pre>
+                  </div>
+                );
+              }
+
+              if (block.type === "steps" && block.steps) {
+                return (
+                  <div key={idx} className="my-6 space-y-4">
+                    {block.steps.map(s => (
+                      <div key={s.step} className="flex gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                        <div className="h-8 w-8 rounded-full bg-red-600 text-white font-mono font-bold flex items-center justify-center flex-shrink-0 text-xs shadow-md">
+                          {s.step}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white mb-1">{s.title}</h4>
+                          <p className="text-xs text-slate-400">{s.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+
+              if (block.type === "command" && block.command) {
+                return <CommandBlock key={idx} command={block.command} />;
+              }
+
+              if (block.type === "api" && block.apiEndpoint) {
+                return <ApiExplorer key={idx} endpoint={block.apiEndpoint} />;
+              }
+
+              if (block.type === "troubleshoot") {
+                return <TroubleshootWizard key={idx} />;
+              }
+
+              return null;
+            })}
+          </div>
+
+          {/* Previous / Next Article Navigation Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-16 pt-8 border-t border-white/10">
+            {prevSlug && articles[prevSlug] ? (
+              <button
+                onClick={() => handleSelectArticle(prevSlug)}
+                className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-red-500/30 text-left transition-all group"
+              >
+                <span className="text-[10px] font-mono text-slate-500 block mb-1 flex items-center gap-1">
+                  <ArrowLeft className="h-3 w-3" /> PREVIOUS ARTICLE
+                </span>
+                <span className="text-xs font-bold text-white group-hover:text-red-400 truncate block">
+                  {articles[prevSlug].title}
+                </span>
+              </button>
+            ) : <div />}
+
+            {nextSlug && articles[nextSlug] ? (
+              <button
+                onClick={() => handleSelectArticle(nextSlug)}
+                className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-red-500/30 text-right transition-all group"
+              >
+                <span className="text-[10px] font-mono text-slate-500 block mb-1 flex items-center justify-end gap-1">
+                  NEXT ARTICLE <ArrowRight className="h-3 w-3" />
+                </span>
+                <span className="text-xs font-bold text-white group-hover:text-red-400 truncate block">
+                  {articles[nextSlug].title}
+                </span>
+              </button>
+            ) : <div />}
           </div>
         </main>
+
+        {/* RIGHT SIDEBAR COLUMN */}
+        <aside className="hidden xl:block w-72 sticky top-16 h-[calc(100vh-64px)] bg-[#080b13] border-l border-white/10 p-5 overflow-y-auto font-sans text-xs space-y-6 no-scrollbar">
+          
+          {/* Table of Contents */}
+          <div className="space-y-3">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
+              ON THIS PAGE
+            </span>
+            <div className="space-y-2 border-l border-white/10 pl-3">
+              <a href="#overview" className="block text-red-400 font-bold font-mono">Overview & Architecture</a>
+              <a href="#key-features" className="block text-slate-400 hover:text-white">Key Capabilities</a>
+              <a href="#configuration" className="block text-slate-400 hover:text-white">Configuration</a>
+              <a href="#code-examples" className="block text-slate-400 hover:text-white">Code Snippets</a>
+            </div>
+          </div>
+
+          {/* Reading Stats */}
+          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2 font-mono text-[11px]">
+            <div className="flex items-center justify-between text-slate-400">
+              <span>Reading Time:</span>
+              <b className="text-white">{currentArticle.readTime}</b>
+            </div>
+            <div className="flex items-center justify-between text-slate-400">
+              <span>Version Target:</span>
+              <b className="text-red-400">{currentArticle.version}</b>
+            </div>
+          </div>
+
+          {/* Feedback Widget */}
+          <div className="p-4 rounded-xl bg-[#101422] border border-white/10 text-center space-y-3">
+            <span className="text-xs font-bold text-white block">Was this page helpful?</span>
+            <div className="flex justify-center gap-3">
+              <button className="p-2 rounded-lg bg-white/5 hover:bg-green-500/20 text-slate-300 hover:text-green-400 font-bold transition-colors flex items-center gap-1 text-xs">
+                <ThumbsUp className="h-3.5 w-3.5" /> Yes
+              </button>
+              <button className="p-2 rounded-lg bg-white/5 hover:bg-red-500/20 text-slate-300 hover:text-red-400 font-bold transition-colors flex items-center gap-1 text-xs">
+                <ThumbsDown className="h-3.5 w-3.5" /> No
+              </button>
+            </div>
+          </div>
+
+          {/* GitHub Edit Button */}
+          <div className="pt-2">
+            <a
+              href="https://github.com/RayExo"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-mono text-[11px] transition-colors"
+            >
+              <Edit3 className="h-3.5 w-3.5 text-red-500" />
+              <span>Edit page on GitHub</span>
+            </a>
+          </div>
+
+        </aside>
+
       </div>
     </div>
   );

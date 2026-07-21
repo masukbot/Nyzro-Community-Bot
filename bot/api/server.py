@@ -120,4 +120,11 @@ def create_app() -> FastAPI:
     async def health():
         return {"status": "ok"}
 
+    @app.post("/api/v1/webhooks/test/{guild_id}", summary="Test webhook delivery", description="Sends a test event to all configured webhooks for the given guild.")
+    async def test_webhook(guild_id: int):
+        """Sends a test 'ping' event to all webhooks configured for the given guild."""
+        from api.routes.guilds import dispatch_webhook_event
+        await dispatch_webhook_event(guild_id, "ping", {"message": "Hello from Nyzro Bot!"})
+        return {"status": "test event dispatched"}
+
     return app

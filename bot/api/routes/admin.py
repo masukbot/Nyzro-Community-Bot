@@ -14,9 +14,12 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from api.dependencies import get_bot
-from api.schemas import AdminStats, AdminNodeStatus, AdminConfig, AdminConfigUpdate
+from api.schemas import AdminStats, AdminNodeStatus, AdminConfig, AdminConfigUpdate, AuthToken, AuthTokenCreate
 from typing import TYPE_CHECKING, List
 import os
+import json
+import secrets
+import time
 import aiosqlite
 
 if TYPE_CHECKING:
@@ -125,4 +128,81 @@ async def patch_admin_config(data: AdminConfigUpdate):
         if data.global_notification is not None:
             await db.execute("UPDATE config SET value = ? WHERE key = 'global_notification'", (data.global_notification,))
         await db.commit()
+    return {"status": "success"}
+
+
+# ========== AUTH TOKENS (Third-party app access) ==========
+
+AUTH_TOKENS_FILE = "jsondb/auth_tokens.json"
+
+def _load_tokens() -> dict:
+    os.makedirs("jsondb", exist_ok=True)
+    if os.path.exists(AUTH_TOKENS_FILE):
+        try:
+            with open(AUTH_TOKENS_FILE, "r") as f:
+                content = f.read().strip()
+                if content:
+                    data = json.loads(content)
+                    if isinstance(data, dict):
+                        return data
+        except (json.JSONDecodeError, Exception):
+            pass
+    return {}
+
+def _save_tokens(data: dict):
+    with open(AUTH_TOKENS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+@router.get("/tokens", response_model=List[AuthToken], summary="List all auth tokens")
+async def list_auth_tokens():
+    """List all third-party auth tokens. Only the token metadata is shown, not the actual secret."""
+    tokens = _load_tokens()
+    return [
+        AuthToken(
+            token=t["token"][:12] + "..." + t["token"][-4:],  # Masked for display
+            name=t["name"],
+            created_at=t["created_at"],
+            last_used=t.get("last_used"),
+            scopes=t.get("scopes", [])
+        )
+        for t in tokens.values()
+    ]
+
+@router.post("/tokens", response_model=AuthToken, summary="Create a new auth token")
+async def create_auth_token(data: AuthTokenCreate):
+    """Create a new auth token for third-party apps to access the API."""
+    tokens = _load_tokens()
+    
+    # Generate a secure random token
+    raw_token = secrets.token_urlsafe(32)
+    token_id = secrets.token_hex(8)
+    
+    token_data = {
+        "token": raw_token,
+        "name": data.name,
+        "created_at": time.strftime('%Y-%m-%dT%H:%M:%S'),
+        "last_used": None,
+        "scopes": data.scopes
+    }
+    
+    tokens[token_id] = token_data
+    _save_tokens(tokens)
+    
+    # Return the full token ONCE on creation, so the user can copy it
+    return AuthToken(
+        token=raw_token,
+        name=data.name,
+        created_at=token_data["created_at"],
+        last_used=None,
+        scopes=data.scopes
+    )
+
+@router.delete("/tokens/{token_id}", summary="Delete an auth token")
+async def delete_auth_token(token_id: str):
+    """Delete a third-party auth token by its ID."""
+    tokens = _load_tokens()
+    if token_id not in tokens:
+        raise HTTPException(status_code=404, detail="Token not found")
+    del tokens[token_id]
+    _save_tokens(tokens)
     return {"status": "success"}

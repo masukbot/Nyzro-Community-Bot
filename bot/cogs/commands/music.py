@@ -33,6 +33,7 @@ from utils.cv2 import CV2, build_container, CV2Embed
 track_histories = {}
 import base64
 import re
+import json
 from utils.config import *
 
 SPOTIFY_TRACK_REGEX = r"https?://open\.spotify\.com/track/([a-zA-Z0-9]+)"
@@ -586,12 +587,12 @@ class Music(commands.Cog):
         bar = '█' * filled_length + '░' * (length - filled_length)
         return bar
 
-    @commands.command(name="play", aliases=['p'], usage="play <query>", help="Plays a song or playlist.")
+    @commands.hybrid_command(name="play", aliases=['p'], usage="play <query>", help="Plays a song or playlist.")
+    @app_commands.describe(query="Song name or URL")
     @blacklist_check()
     @ignore_check()
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def play(self, ctx: commands.Context, *, query: str):
-        
         await self.play_source(ctx, query)
 
 
@@ -986,3 +987,148 @@ class Music(commands.Cog):
         if voice_channel:
             await voice_channel.edit(status=None)  # type: ignore
         await self.on_track_end(payload)
+        
+    def _get_playlists_path(self, guild_id):
+        dir_path = os.path.join("data", "playlists")
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        return os.path.join(dir_path, f"{guild_id}.json")
+        
+    def _load_playlists(self, guild_id):
+        path = self._get_playlists_path(guild_id)
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
+        
+    def _save_playlists(self, guild_id, playlists):
+        path = self._get_playlists_path(guild_id)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(playlists, f, indent=2)
+            
+    @commands.command(name="saveplaylist", aliases=["spl"], usage="saveplaylist <name>", help="Saves the current queue as a playlist.")
+    @blacklist_check()
+    @ignore_check()
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def save_playlist(self, ctx, name: str):
+        vc = ctx.voice_client
+        if not vc or not vc.queue or vc.queue.is_empty:
+            await ctx.send(view=CV2(f"{WARNING} Queue is empty, nothing to save."))
+            return
+            
+        playlist_data = []
+        if vc.current:
+            playlist_data.append({"title": vc.current.title, "author": vc.current.author, "uri": vc.current.uri})
+            
+        for track in vc.queue:
+            playlist_data.append({"title": track.title, "author": track.author, "uri": track.uri})
+            
+        playlists = self._load_playlists(ctx.guild.id)
+        playlists[name] = playlist_data
+        self._save_playlists(ctx.guild.id, playlists)
+        
+        await ctx.send(view=CV2(f"{TICK} Saved playlist '{name}' with {len(playlist_data)} tracks!"))
+        
+    @commands.command(name="loadplaylist", aliases=["lpl"], usage="loadplaylist <name>", help="Loads a saved playlist.")
+    @blacklist_check()
+    @ignore_check()
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def load_playlist(self, ctx, name: str):
+        if not ctx.author.voice:
+            await ctx.send(view=CV2(f"{WARNING} You need to be in a voice channel!"))
+            return
+            
+        playlists = self._load_playlists(ctx.guild.id)
+        if name not in playlists:
+            await ctx.send(view=CV2(f"{WARNING} Playlist '{name}' not found!"))
+            return
+            
+        vc = ctx.voice_client or await ctx.author.voice.channel.connect(cls=wavelink.Player)
+        vc.ctx = ctx
+        tracks = playlists[name]
+        added_count = 0
+        
+        await ctx.send(view=CV2(f"{ICONLOAD} Loading playlist '{name}'..."))
+        
+        for track_data in tracks:
+            try:
+                search_results = await wavelink.Playable.search(track_data["uri"])
+                if search_results:
+                    await vc.queue.put_wait(search_results[0])
+                    added_count += 1
+            except Exception as e:
+                pass
+                
+        if not vc.playing and not vc.queue.is_empty:
+            track = await vc.queue.get_wait()
+            await vc.play(track)
+            await self.display_player_embed(vc, track, ctx)
+            
+        await ctx.send(view=CV2(f"{TICK} Loaded {added_count} tracks from '{name}'!"))
+        
+    @commands.command(name="listplaylists", aliases=["lpls"], usage="listplaylists", help="Lists all saved playlists.")
+    @blacklist_check()
+    @ignore_check()
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def list_playlists(self, ctx):
+        playlists = self._load_playlists(ctx.guild.id)
+        if not playlists:
+            await ctx.send(view=CV2(f"{WARNING} No saved playlists yet!"))
+            return
+            
+        embed = CV2Embed(title="Saved Playlists")
+        for name, tracks in playlists.items():
+            embed.add_field(name=name, value=f"{len(tracks)} tracks")
+            
+        await ctx.send(view=embed)
+        
+    @commands.command(name="deleteplaylist", aliases=["dpl"], usage="deleteplaylist <name>", help="Deletes a saved playlist.")
+    @blacklist_check()
+    @ignore_check()
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    @commands.has_permissions(manage_guild=True)
+    async def delete_playlist(self, ctx, name: str):
+        playlists = self._load_playlists(ctx.guild.id)
+        if name not in playlists:
+            await ctx.send(view=CV2(f"{WARNING} Playlist '{name}' not found!"))
+            return
+            
+        del playlists[name]
+        self._save_playlists(ctx.guild.id, playlists)
+        await ctx.send(view=CV2(f"{TICK} Deleted playlist '{name}'!"))
+        
+    @commands.command(name="lyrics", aliases=["ly"], usage="lyrics [query]", help="Searches for lyrics.")
+    @blacklist_check()
+    @ignore_check()
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def lyrics(self, ctx, *, query: str = None):
+        search_query = query
+        if not search_query:
+            vc = ctx.voice_client
+            if not vc or not vc.current:
+                await ctx.send(view=CV2(f"{WARNING} Provide a song name or play a song!"))
+                return
+            search_query = f"{vc.current.title} {vc.current.author}"
+            
+        await ctx.send(view=CV2(f"{ICONLOAD} Searching lyrics for '{search_query}'..."))
+        
+        try:
+            from lyricsgenius import Genius
+            genius = Genius(os.getenv("GENIUS_API_TOKEN", ""), verbose=False)
+            song = genius.search_song(search_query)
+            
+            if song:
+                lyrics_text = song.lyrics
+                
+                if len(lyrics_text) > 4096:
+                    lyrics_text = lyrics_text[:4093] + "..."
+                    
+                embed = CV2Embed(title=f"Lyrics: {song.title}", description=lyrics_text)
+                embed.set_thumbnail(url=song.song_art_image_url if song.song_art_image_url else "")
+                await ctx.send(view=embed)
+            else:
+                await ctx.send(view=CV2(f"{WARNING} No lyrics found for '{search_query}'!"))
+        except ImportError:
+            await ctx.send(view=CV2(f"{WARNING} Lyrics feature requires `lyricsgenius` package!"))
+        except Exception as e:
+            await ctx.send(view=CV2(f"{WARNING} Error searching lyrics: {str(e)}"))

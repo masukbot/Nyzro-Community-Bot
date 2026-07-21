@@ -24,6 +24,7 @@ import {
   ShieldCheck, 
   Ticket, 
   BarChart4, 
+  BarChart3,
   FileText, 
   Settings,
   Layers,
@@ -42,7 +43,9 @@ import {
   Link2,
   Zap,
   Mic,
-  Mail
+  Mail,
+  Star,
+  Terminal
 } from "lucide-react";
 
 interface Tab {
@@ -83,6 +86,9 @@ export function GuildTabs({ guildId }: { guildId: string }) {
     { name: "Join DM", href: `/dashboard/guild/${guildId}/joindm`, icon: Mail },
     { name: "Leveling", href: `/dashboard/guild/${guildId}/leveling`, icon: BarChart4 },
     { name: "Logging", href: `/dashboard/guild/${guildId}/logging`, icon: FileText },
+    { name: "Starboard", href: `/dashboard/guild/${guildId}/starboard`, icon: Star },
+    { name: "AI Platform", href: `/dashboard/guild/${guildId}/ai`, icon: Sparkles },
+    { name: "Analytics", href: `/dashboard/guild/${guildId}/analytics`, icon: BarChart3 },
     { name: "Settings", href: `/dashboard/guild/${guildId}/settings`, icon: Settings },
   ].filter(tab => tab.href); // Filter out any undefined hrefs
 
