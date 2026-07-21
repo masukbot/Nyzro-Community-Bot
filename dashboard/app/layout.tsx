@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
  * ║                                                                  ║
@@ -20,6 +21,7 @@ import "./globals.css";
 
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -33,17 +35,24 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: Readonly&lt;{
   children: React.ReactNode;
-}>) {
+}&gt;) {
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
-      <body className="font-sans antialiased text-slate-200">
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
-      </body>
-    </html>
+    &lt;html lang="en" className={`${inter.variable} ${outfit.variable}`} suppressHydrationWarning&gt;
+      &lt;body className="font-sans antialiased text-slate-900 dark:text-slate-200 bg-white dark:bg-slate-950"&gt;
+        &lt;ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        &gt;
+          &lt;AuthProvider&gt;
+            {children}
+            &lt;Toaster /&gt;
+          &lt;/AuthProvider&gt;
+        &lt;/ThemeProvider&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
   );
 }
