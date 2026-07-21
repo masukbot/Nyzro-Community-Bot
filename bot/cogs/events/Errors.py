@@ -19,6 +19,7 @@ from discord.ext import commands
 from utils.config import serverLink
 from core import nyzro, Cog, Context
 from utils.Tools import get_ignore_data
+from utils.logger import logger
 
 class Errors(Cog):
   def __init__(self, client: nyzro):
@@ -112,11 +113,11 @@ class Errors(Cog):
       return
 
     if isinstance(error, discord.HTTPException):
-      print(f"[ERROR] HTTPException in {ctx.command}: {error}")
+      logger.error(f"HTTPException in {ctx.command}: {error}", exc_info=True)
       return
 
     if isinstance(error, commands.CommandInvokeError):
-      print(f"[ERROR] CommandInvokeError in {ctx.command}: {error}")
-      print(f"  Original: {error.original}")
+      logger.error(f"CommandInvokeError in {ctx.command}: {error}", exc_info=True)
+      logger.error(f"  Original: {error.original}", exc_info=True)
       return
 

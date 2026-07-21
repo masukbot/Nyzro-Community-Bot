@@ -34,6 +34,7 @@ from utils.Tools import *
 from utils.config import *
 from utils.emoji import SUCCESS, ERROR, TICK, CROSS, REACTION_TEST_EMOJIS
 from utils.sync_emojis import run_sync
+from utils.logger import logger
 
 import jishaku
 import cogs
@@ -77,7 +78,7 @@ async def update_stats():
                 await user_channel.edit(name=f"Users: {users}")
                 
         except Exception as e:
-            print(f"Error updating stats: {e}")
+            logger.error(f"Error updating stats: {e}", exc_info=True)
         
         await asyncio.sleep(600) # Update every 10 minutes
 
@@ -86,7 +87,7 @@ async def update_stats():
 async def on_ready():
     await client.wait_until_ready()
     
-    print("""
+    logger.info("""
         \033[1;31m
  ██████╗ ██████╗ ██████╗ ███████╗██╗  ██╗
 ██╔════╝██╔═══██╗██╔══██╗██╔════╝╚██╗██╔╝
@@ -96,10 +97,10 @@ async def on_ready():
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
         \033[0m
        """)
-    print("Loaded & Online!")
-    print(f"Logged in as: {client.user}")
-    print(f"Connected to: {len(client.guilds)} guilds")
-    print(f"Connected to: {len(client.users)} users")
+    logger.info("Loaded & Online!")
+    logger.info(f"Logged in as: {client.user}")
+    logger.info(f"Connected to: {len(client.guilds)} guilds")
+    logger.info(f"Connected to: {len(client.users)} users")
 
     # Sync application emojis on startup
     await run_sync(TOKEN)
@@ -108,9 +109,9 @@ async def on_ready():
         try:
             synced = await client.tree.sync()
             all_commands = list(client.commands)
-            print(f"Synced Total {len(all_commands)} Client Commands and {len(synced)} Slash Commands")
+            logger.info(f"Synced Total {len(all_commands)} Client Commands and {len(synced)} Slash Commands")
         except Exception as e:
-            print(f"Error syncing command tree: {e}")
+            logger.error(f"Error syncing command tree: {e}", exc_info=True)
 
     client.loop.create_task(sync_commands())
     client.loop.create_task(update_stats())
@@ -155,7 +156,7 @@ async def on_command_completion(context: commands.Context) -> None:
         try:
             await webhook.send(embed=embed)
         except Exception as e:
-            print(f'Command log webhook failed: {e}')
+            logger.warning(f'Command log webhook failed: {e}', exc_info=True)
 
 
 # --- Utility Commands ---
@@ -326,9 +327,9 @@ def run_api():
 
 def keep_alive():
     if not API_ENABLED:
-        print(f"\033[33m◈ API Server: Disabled via API_ENABLED=false\033[0m")
+        logger.info("\033[33m◈ API Server: Disabled via API_ENABLED=false\033[0m")
         return
-    print(f"\033[32m◈ API Server: Starting on port {API_PORT}\033[0m")
+    logger.info(f"\033[32m◈ API Server: Starting on port {API_PORT}\033[0m")
     server = Thread(target=run_api, daemon=True)
     server.start()
 
@@ -352,7 +353,7 @@ async def main():
             except discord.HTTPException as e:
                 if e.status == 429: # Rate limited
                     wait_time = min((2 ** attempt) + random.random(), 60)
-                    print(f"Rate limited. Retrying in {wait_time:.2f} seconds...")
+                    logger.warning(f"Rate limited. Retrying in {wait_time:.2f} seconds...")
                     await asyncio.sleep(wait_time)
                 else:
                     raise
