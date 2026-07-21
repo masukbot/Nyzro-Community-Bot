@@ -447,3 +447,42 @@ class AuthToken(BaseModel):
 class AuthTokenCreate(BaseModel):
     name: str
     scopes: List[str] = []
+
+# --- AI Platform Schemas ---
+
+class AIChatChannelSchema(BaseModel):
+    channel_id: str
+    channel_name: Optional[str] = None
+    enabled: bool = False
+    model_id: Optional[str] = None
+    system_prompt: Optional[str] = None
+    mode: str = "reply_all"  # "reply_all" | "mention_only"
+    temperature: float = 0.7
+
+class AIConfigSchema(BaseModel):
+    guild_id: int
+    ai_enabled: bool = False
+    chat_channels: List[AIChatChannelSchema] = []
+    provider_profiles: List[Dict] = []
+    model_definitions: List[Dict] = []
+    feature_assignments: List[Dict] = []
+    personas: List[Dict] = []
+    memory_config: Dict = {}
+    moderation_detectors: List[Dict] = []
+    vision_config: Dict = {"enabled": False}
+    failover_config: Dict = {"enabled": False}
+    budget_limit: float = 50.0
+
+class AIConfigUpdateSchema(BaseModel):
+    ai_enabled: Optional[bool] = None
+    chat_channels: Optional[List[AIChatChannelSchema]] = None
+    provider_profiles: Optional[List[Dict]] = None
+    model_definitions: Optional[List[Dict]] = None
+    feature_assignments: Optional[List[Dict]] = None
+    personas: Optional[List[Dict]] = None
+    memory_config: Optional[Dict] = None
+    moderation_detectors: Optional[List[Dict]] = None
+    vision_config: Optional[Dict] = None
+    failover_config: Optional[Dict] = None
+    budget_limit: Optional[float] = None
+

@@ -51,6 +51,7 @@ import {
   Activity,
   Terminal,
   ChevronRight,
+  ChevronLeft,
   Shield,
   KeyRound,
   FileText
@@ -147,6 +148,35 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
   const [newProviderName, setNewProviderName] = useState("My Gemini Provider");
   const [newProviderKey, setNewProviderKey] = useState("");
   const [newProviderEndpoint, setNewProviderEndpoint] = useState("https://generativelanguage.googleapis.com");
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const [selectedNewChannelId, setSelectedNewChannelId] = useState<string>("");
+
+  const handleAddChatChannel = () => {
+    if (!selectedNewChannelId) return;
+    const targetChan = channels.find(c => c.id === selectedNewChannelId);
+    const existing = config.chat_channels.find(c => c.channel_id === selectedNewChannelId);
+    if (existing) {
+      toast.error("Channel already added to AI Chat channels.");
+      return;
+    }
+
+    const newChatChannel = {
+      id: `c_${Date.now()}`,
+      channel_id: selectedNewChannelId,
+      channel_name: targetChan ? `#${targetChan.name}` : selectedNewChannelId,
+      enabled: true,
+      mode: "reply_all" as const,
+      model_id: "m1",
+      system_prompt: "You are Nyzro AI assistant. Help community members politely.",
+      temperature: 0.7
+    };
+
+    setConfig(prev => ({ ...prev, chat_channels: [...prev.chat_channels, newChatChannel] }));
+    setSelectedNewChannelId("");
+    toast.success(`Added #${targetChan?.name || selectedNewChannelId} to AI Chat Channels!`);
+  };
+
+  const activeModuleIndex = Math.max(0, SUB_MODULES.findIndex(m => m.id === activeTab));
 
   // Save Config to Server
   const handleSave = async () => {
@@ -245,9 +275,19 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
 
   return (
     <div className="space-y-8">
-      {/* Platform Sub-Module Navigation Header */}
-      <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-4 shadow-xl overflow-x-auto no-scrollbar">
-        <div className="flex gap-2 min-w-max">
+      {/* Platform Sub-Module Navigation Header with Scroll Arrows */}
+      <div className="relative bg-[#141B2D] border border-slate-800 rounded-3xl p-3 shadow-xl flex items-center gap-2">
+        <button
+          onClick={() => {
+            if (scrollContainerRef.current) scrollContainerRef.current.scrollBy({ left: -220, behavior: "smooth" });
+          }}
+          className="p-2.5 rounded-2xl bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700/50 flex-shrink-0 transition-colors"
+          title="Scroll Left"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        <div ref={scrollContainerRef} className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth flex-1 py-1">
           {SUB_MODULES.map(mod => {
             const isActive = activeTab === mod.id;
             const Icon = mod.icon;
@@ -256,7 +296,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                 key={mod.id}
                 onClick={() => setActiveTab(mod.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300",
+                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300 flex-shrink-0",
                   isActive
                     ? "bg-primary text-white shadow-lg shadow-primary/30 ring-1 ring-white/10 scale-[1.02]"
                     : "text-slate-400 bg-slate-900/40 hover:bg-slate-800/60 hover:text-white border border-slate-800/40"
@@ -268,6 +308,16 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
             );
           })}
         </div>
+
+        <button
+          onClick={() => {
+            if (scrollContainerRef.current) scrollContainerRef.current.scrollBy({ left: 220, behavior: "smooth" });
+          }}
+          className="p-2.5 rounded-2xl bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700/50 flex-shrink-0 transition-colors"
+          title="Scroll Right"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Main Content Area based on activeTab */}
@@ -679,108 +729,137 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
         {/* 5. AI CHAT CHANNELS */}
         {activeTab === "channels" && (
           <div className="space-y-6">
-            <div>
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                AI Chat Channel Configurations
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">Configure independent AI behavior for Discord text channels.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  AI Chat Channel Management
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Select and configure specific Discord text channels where Nyzro AI auto-chat responds.</p>
+              </div>
+
+              {/* Add Channel Picker */}
+              <div className="flex items-center gap-3">
+                <Select
+                  value={selectedNewChannelId}
+                  onValueChange={setSelectedNewChannelId}
+                  options={channels.map(c => ({ value: c.id, label: `#${c.name}` }))}
+                  placeholder="Select Discord Channel..."
+                  className="w-56"
+                />
+                <Button
+                  onClick={handleAddChatChannel}
+                  disabled={!selectedNewChannelId}
+                  className="gap-2 font-bold"
+                >
+                  <Plus className="h-4 w-4" /> Add Channel
+                </Button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {config.chat_channels.map(ch => (
-                <div key={ch.id} className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-white text-lg">{ch.channel_name}</h4>
-                    <Switch
-                      checked={ch.enabled}
-                      onCheckedChange={() => setConfig(prev => ({
-                        ...prev,
-                        chat_channels: prev.chat_channels.map(item => item.id === ch.id ? { ...item, enabled: !item.enabled } : item)
-                      }))}
-                    />
-                  </div>
+            {config.chat_channels.length === 0 ? (
+              <div className="p-12 text-center bg-[#141B2D] border border-slate-800 rounded-3xl space-y-3 shadow-xl">
+                <MessageSquare className="h-10 w-10 text-slate-600 mx-auto" />
+                <h4 className="text-base font-bold text-white">No AI Chat Channels Configured</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Select a text channel above and click &quot;Add Channel&quot; to enable custom AI responses in your Discord server.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {config.chat_channels.map((ch, idx) => (
+                  <div key={ch.channel_id || idx} className="p-6 bg-[#141B2D] border border-slate-800 rounded-3xl space-y-4 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                          <MessageSquare className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-white text-base">{ch.channel_name || `#${ch.channel_id}`}</h4>
+                          <span className="text-[10px] text-slate-500 font-mono">ID: {ch.channel_id}</span>
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-400">Channel AI</span>
+                          <Switch
+                            checked={ch.enabled}
+                            onCheckedChange={(val) => {
+                              const updated = [...config.chat_channels];
+                              updated[idx].enabled = val;
+                              setConfig(prev => ({ ...prev, chat_channels: updated }));
+                            }}
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const updated = config.chat_channels.filter((_, i) => i !== idx);
+                            setConfig(prev => ({ ...prev, chat_channels: updated }));
+                            toast.success("AI Chat Channel removed.");
+                          }}
+                          className="text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-800/80">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Response Mode</label>
+                        <Select
+                          value={ch.mode || "reply_all"}
+                          onValueChange={(val: any) => {
+                            const updated = [...config.chat_channels];
+                            updated[idx].mode = val;
+                            setConfig(prev => ({ ...prev, chat_channels: updated }));
+                          }}
+                          options={[
+                            { value: "reply_all", label: "Respond to All Messages" },
+                            { value: "mention_only", label: "Respond Only When @Mentioned" }
+                          ]}
+                          className="mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Assigned Model Override</label>
+                        <Select
+                          value={ch.model_id || "default"}
+                          onValueChange={(val) => {
+                            const updated = [...config.chat_channels];
+                            updated[idx].model_id = val === "default" ? undefined : val;
+                            setConfig(prev => ({ ...prev, chat_channels: updated }));
+                          }}
+                          options={[
+                            { value: "default", label: "Default System Model" },
+                            ...config.models.map(m => ({ value: m.id, label: m.model_name }))
+                          ]}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Assigned Model</label>
-                      <Select
-                        value={ch.model_id}
-                        onValueChange={(val) => setConfig(prev => ({
-                          ...prev,
-                          chat_channels: prev.chat_channels.map(item => item.id === ch.id ? { ...item, model_id: val } : item)
-                        }))}
-                        options={config.models.map(m => ({ value: m.id, label: m.model_name }))}
-                        className="mt-1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Persona</label>
-                      <Select
-                        value={ch.persona_id}
-                        onValueChange={(val) => setConfig(prev => ({
-                          ...prev,
-                          chat_channels: prev.chat_channels.map(item => item.id === ch.id ? { ...item, persona_id: val } : item)
-                        }))}
-                        options={config.personas.map(p => ({ value: p.id, label: p.name }))}
-                        className="mt-1"
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Channel Custom System Prompt</label>
+                      <Textarea
+                        value={ch.system_prompt || ""}
+                        onChange={(e) => {
+                          const updated = [...config.chat_channels];
+                          updated[idx].system_prompt = e.target.value;
+                          setConfig(prev => ({ ...prev, chat_channels: updated }));
+                        }}
+                        placeholder="e.g. You are an expert gaming guide for our Discord server..."
+                        className="mt-1 bg-slate-900/60 border-slate-800 text-xs h-20"
                       />
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Cooldown (Sec)</label>
-                      <Input
-                        type="number"
-                        value={ch.cooldown_seconds}
-                        onChange={(e) => setConfig(prev => ({
-                          ...prev,
-                          chat_channels: prev.chat_channels.map(item => item.id === ch.id ? { ...item, cooldown_seconds: parseInt(e.target.value) || 0 } : item)
-                        }))}
-                        className="mt-1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Prefix Trigger</label>
-                      <Input
-                        value={ch.prefix_trigger}
-                        onChange={(e) => setConfig(prev => ({
-                          ...prev,
-                          chat_channels: prev.chat_channels.map(item => item.id === ch.id ? { ...item, prefix_trigger: e.target.value } : item)
-                        }))}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-2 border-t border-slate-800">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>Mention Required</span>
-                      <Switch
-                        checked={ch.mention_required}
-                        onCheckedChange={(val) => setConfig(prev => ({
-                          ...prev,
-                          chat_channels: prev.chat_channels.map(item => item.id === ch.id ? { ...item, mention_required: val } : item)
-                        }))}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>Streaming Responses</span>
-                      <Switch
-                        checked={ch.streaming_enabled}
-                        onCheckedChange={(val) => setConfig(prev => ({
-                          ...prev,
-                          chat_channels: prev.chat_channels.map(item => item.id === ch.id ? { ...item, streaming_enabled: val } : item)
-                        }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1391,6 +1470,32 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
             </div>
           </div>
         )}
+        {/* Linear Previous / Next Module Navigation */}
+        <div className="flex items-center justify-between pt-6 border-t border-slate-800">
+          <Button
+            variant="outline"
+            disabled={activeModuleIndex <= 0}
+            onClick={() => setActiveTab(SUB_MODULES[activeModuleIndex - 1].id)}
+            className="gap-2 font-bold text-xs"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous: {activeModuleIndex > 0 ? SUB_MODULES[activeModuleIndex - 1].name : "Start"}
+          </Button>
+
+          <span className="text-xs font-mono text-slate-500 font-bold">
+            {activeModuleIndex + 1} of {SUB_MODULES.length} Modules
+          </span>
+
+          <Button
+            variant="outline"
+            disabled={activeModuleIndex >= SUB_MODULES.length - 1}
+            onClick={() => setActiveTab(SUB_MODULES[activeModuleIndex + 1].id)}
+            className="gap-2 font-bold text-xs"
+          >
+            Next: {activeModuleIndex < SUB_MODULES.length - 1 ? SUB_MODULES[activeModuleIndex + 1].name : "End"}
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
       </div>
 

@@ -33,7 +33,8 @@ from api.schemas import (
     PremiumConfig, PremiumUser,
     EconomyConfig, EconomyUser, EconomyShop, ShopItem,
     VoiceLogConfig, VoiceLogUpdate,
-    WebhookConfig, WebhookUpdate, WebhookEvent
+    WebhookConfig, WebhookUpdate, WebhookEvent,
+    AIConfigSchema, AIConfigUpdateSchema, AIChatChannelSchema
 )
 from typing import TYPE_CHECKING, List, Optional
 import math
@@ -1714,5 +1715,114 @@ async def dispatch_webhook_event(guild_id: int, event: str, data: dict):
                     await session.post(webhook["url"], json=payload, timeout=aiohttp.ClientTimeout(total=5))
                 except Exception:
                     pass
+
+
+# --- AI Platform Routes ---
+
+@router.get("/{guild_id}/ai", response_model=AIConfigSchema, summary="Get AI platform configuration")
+async def get_ai_config(guild_id: int):
+    """
+    Retrieves the persistent AI configuration for a guild. All features default to disabled (OFF).
+    """
+    db = await db_manager.get_connection('db/ai.db')
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS ai_guild_configs (
+            guild_id INTEGER PRIMARY KEY,
+            ai_enabled INTEGER DEFAULT 0,
+            config_json TEXT
+        )
+    """)
+    await db.commit()
+
+    cursor = await db.execute("SELECT ai_enabled, config_json FROM ai_guild_configs WHERE guild_id = ?", (guild_id,))
+    row = await cursor.fetchone()
+    
+    if not row or not row[1]:
+        return AIConfigSchema(
+            guild_id=guild_id,
+            ai_enabled=False,
+            chat_channels=[],
+            provider_profiles=[],
+            model_definitions=[],
+            feature_assignments=[],
+            personas=[],
+            memory_config={"enabled": False, "context_window": 10},
+            moderation_detectors=[],
+            vision_config={"enabled": False, "auto_scan": False, "ocr_phishing": False},
+            failover_config={"enabled": False, "retry_attempts": 2},
+            budget_limit=50.0
+        )
+        
+    try:
+        data = json.loads(row[1])
+        return AIConfigSchema(
+            guild_id=guild_id,
+            ai_enabled=bool(row[0]),
+            chat_channels=data.get("chat_channels", []),
+            provider_profiles=data.get("provider_profiles", []),
+            model_definitions=data.get("model_definitions", []),
+            feature_assignments=data.get("feature_assignments", []),
+            personas=data.get("personas", []),
+            memory_config=data.get("memory_config", {"enabled": False}),
+            moderation_detectors=data.get("moderation_detectors", []),
+            vision_config=data.get("vision_config", {"enabled": False}),
+            failover_config=data.get("failover_config", {"enabled": False}),
+            budget_limit=data.get("budget_limit", 50.0)
+        )
+    except Exception:
+        return AIConfigSchema(guild_id=guild_id, ai_enabled=False)
+
+@router.post("/{guild_id}/ai", summary="Update AI platform configuration")
+async def update_ai_config(guild_id: int, data: AIConfigUpdateSchema):
+    """
+    Saves and updates persistent AI platform configuration for a guild.
+    """
+    db = await db_manager.get_connection('db/ai.db')
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS ai_guild_configs (
+            guild_id INTEGER PRIMARY KEY,
+            ai_enabled INTEGER DEFAULT 0,
+            config_json TEXT
+        )
+    """)
+    await db.commit()
+
+    # Get current config
+    cursor = await db.execute("SELECT ai_enabled, config_json FROM ai_guild_configs WHERE guild_id = ?", (guild_id,))
+    row = await cursor.fetchone()
+    
+    current_enabled = bool(row[0]) if row else False
+    current_json = json.loads(row[1]) if row and row[1] else {}
+
+    if data.ai_enabled is not None:
+        current_enabled = data.ai_enabled
+    if data.chat_channels is not None:
+        current_json["chat_channels"] = [c.dict() for c in data.chat_channels]
+    if data.provider_profiles is not None:
+        current_json["provider_profiles"] = data.provider_profiles
+    if data.model_definitions is not None:
+        current_json["model_definitions"] = data.model_definitions
+    if data.feature_assignments is not None:
+        current_json["feature_assignments"] = data.feature_assignments
+    if data.personas is not None:
+        current_json["personas"] = data.personas
+    if data.memory_config is not None:
+        current_json["memory_config"] = data.memory_config
+    if data.moderation_detectors is not None:
+        current_json["moderation_detectors"] = data.moderation_detectors
+    if data.vision_config is not None:
+        current_json["vision_config"] = data.vision_config
+    if data.failover_config is not None:
+        current_json["failover_config"] = data.failover_config
+    if data.budget_limit is not None:
+        current_json["budget_limit"] = data.budget_limit
+
+    await db.execute(
+        "INSERT OR REPLACE INTO ai_guild_configs (guild_id, ai_enabled, config_json) VALUES (?, ?, ?)",
+        (guild_id, 1 if current_enabled else 0, json.dumps(current_json))
+    )
+    await db.commit()
+    return {"status": "success", "message": "AI platform configuration updated successfully."}
+
 
 

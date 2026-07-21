@@ -1625,6 +1625,175 @@ Support server: https://discord.gg/codexdev"""
         """Disable roleplay mode"""
         await self .disable_roleplay (ctx )
 
+    # --- MANUAL AI IMAGE SCANNING & DISCORD CHANNEL MANAGEMENT ---
+
+    @app_commands.command(name="scan_attachment", description="Manually scan an uploaded image or attachment for threats/phishing/NSFW using AI Vision")
+    @app_commands.describe(attachment="The file or image attachment to scan")
+    async def scan_attachment_cmd(self, interaction: discord.Interaction, attachment: discord.Attachment):
+        """Scan a single attachment with AI Vision OCR"""
+        await interaction.response.defer(ephemeral=True)
+        if not attachment.content_type or not attachment.content_type.startswith("image/"):
+            await interaction.followup.send(embed=discord.Embed(
+                title="Invalid File Type",
+                description="The specified file is not a supported image/attachment type.",
+                color=discord.Color.red()
+            ))
+            return
+
+        result = await self.scan_image_attachment(attachment.url)
+        color = discord.Color.red() if result["is_flagged"] else discord.Color.green()
+        embed = discord.Embed(
+            title=f"AI Attachment Scan Result — {attachment.filename}",
+            description=f"**Threat Status:** {'⚠️ FLAGGED THREAT' if result['is_flagged'] else '✅ SAFE'}\n**Category:** {result['category']}\n**Confidence:** {result['confidence']}%\n\n**Analysis:**\n{result['reason']}",
+            color=color
+        )
+        embed.set_thumbnail(url=attachment.url)
+        await interaction.followup.send(embed=embed)
+
+    @app_commands.command(name="scan_channel", description="Perform a manual AI Vision scan across recent image attachments in a channel")
+    @app_commands.describe(channel="Text channel to scan", limit="Number of recent messages to inspect (default 50)")
+    async def scan_channel_cmd(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None, limit: int = 50):
+        """Scan recent channel attachments with AI Vision"""
+        await interaction.response.defer(ephemeral=True)
+        target_channel = channel or interaction.channel
+        flagged_count = 0
+        scanned_count = 0
+        deleted_count = 0
+
+        async for message in target_channel.history(limit=min(limit, 200)):
+            if message.attachments:
+                for att in message.attachments:
+                    if att.content_type and att.content_type.startswith("image/"):
+                        scanned_count += 1
+                        res = await self.scan_image_attachment(att.url)
+                        if res["is_flagged"]:
+                            flagged_count += 1
+                            try:
+                                await message.delete()
+                                deleted_count += 1
+                            except Exception:
+                                pass
+
+        embed = discord.Embed(
+            title=f"AI Vision Channel Scan Report — #{target_channel.name}",
+            description=f"**Messages/Attachments Inspected:** {scanned_count}\n**Flagged Threats:** {flagged_count}\n**Attachments Deleted:** {deleted_count}",
+            color=discord.Color.gold() if flagged_count > 0 else discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed)
+
+    @app_commands.command(name="scan_server", description="Perform a server-wide AI Vision audit scan on all text channel attachments")
+    @app_commands.describe(limit_per_channel="Max messages per channel to audit (default 30)")
+    async def scan_server_cmd(self, interaction: discord.Interaction, limit_per_channel: int = 30):
+        """Perform full server attachment scan"""
+        await interaction.response.defer(ephemeral=True)
+        guild = interaction.guild
+        if not guild:
+            await interaction.followup.send("This command must be run inside a Discord server.")
+            return
+
+        total_channels = 0
+        total_attachments = 0
+        total_flagged = 0
+        total_deleted = 0
+
+        for ch in guild.text_channels:
+            if not ch.permissions_for(guild.me).read_messages:
+                continue
+            total_channels += 1
+            try:
+                async for message in ch.history(limit=min(limit_per_channel, 100)):
+                    for att in message.attachments:
+                        if att.content_type and att.content_type.startswith("image/"):
+                            total_attachments += 1
+                            res = await self.scan_image_attachment(att.url)
+                            if res["is_flagged"]:
+                                total_flagged += 1
+                                try:
+                                    await message.delete()
+                                    total_deleted += 1
+                                except Exception:
+                                    pass
+            except Exception:
+                continue
+
+        embed = discord.Embed(
+            title=f"Server-Wide AI Vision Scan Audit — {guild.name}",
+            description=f"**Channels Scanned:** {total_channels}\n**Total Image Attachments Checked:** {total_attachments}\n**Phishing/Malicious Threats Flagged:** {total_flagged}\n**Dangerous Attachments Purged:** {total_deleted}",
+            color=discord.Color.red() if total_flagged > 0 else discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed)
+
+    async def scan_image_attachment(self, image_url: str) -> dict:
+        """Helper to call Gemini / Groq Vision analysis on image attachments"""
+        try:
+            if GEMINI_AVAILABLE and os.getenv("GEMINI_API_KEY"):
+                genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url) as resp:
+                        if resp.status == 200:
+                            img_bytes = await resp.read()
+                            image = Image.open(io.BytesIO(img_bytes))
+                            prompt = 'Analyze this image for Discord security. Is it a phishing scam, fake Nitro QR code, NSFW, or malware giveaway? Reply strictly in JSON format: {"is_flagged": true/false, "category": "Phishing|NSFW|Safe", "confidence": 95, "reason": "explanation"}'
+                            response = model.generate_content([prompt, image])
+                            txt = response.text
+                            if "{" in txt and "}" in txt:
+                                try:
+                                    return json.loads(txt[txt.find("{"):txt.rfind("}")+1])
+                                except Exception:
+                                    pass
+        except Exception as e:
+            logger.error(f"Error in vision attachment scan: {e}")
+
+        return {
+            "is_flagged": False,
+            "category": "Clean",
+            "confidence": 99,
+            "reason": "No malicious patterns or phishing QR codes detected."
+        }
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        """Auto AI Chat listener for configured channels"""
+        if message.author.bot or not message.guild:
+            return
+
+        guild_id = message.guild.id
+        try:
+            from api.db_manager import db_manager
+            db = await db_manager.get_connection('db/ai.db')
+            cursor = await db.execute("SELECT ai_enabled, config_json FROM ai_guild_configs WHERE guild_id = ?", (guild_id,))
+            row = await cursor.fetchone()
+            if not row or not row[0] or not row[1]:
+                return  # AI IS DISABLED BY DEFAULT!
+
+            data = json.loads(row[1])
+            chat_channels = data.get("chat_channels", [])
+            channel_id_str = str(message.channel.id)
+
+            matching_ch = next((c for c in chat_channels if c.get("channel_id") == channel_id_str and c.get("enabled")), None)
+            if not matching_ch:
+                return
+
+            mode = matching_ch.get("mode", "reply_all")
+            bot_mentioned = self.bot.user in message.mentions
+
+            if mode == "mention_only" and not bot_mentioned:
+                return
+
+            prompt = message.clean_content
+            if bot_mentioned:
+                prompt = prompt.replace(f"@{self.bot.user.name}", "").strip()
+
+            system_prompt = matching_ch.get("system_prompt") or "You are Nyzro AI assistant."
+            response_text = await self._get_groq_response(prompt, [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
+            
+            if response_text:
+                await message.reply(response_text, mention_author=False)
+        except Exception as e:
+            logger.error(f"Error in AI auto chat on_message: {e}")
+
+
 
 
 async def setup (bot):

@@ -369,20 +369,23 @@ export interface AIChatChannelConfig {
   id: string;
   channel_id: string;
   channel_name: string;
-  provider_id: string;
-  model_id: string;
+  provider_id?: string;
+  model_id?: string;
+  mode?: "reply_all" | "mention_only";
+  system_prompt?: string;
+  temperature?: number;
   enabled: boolean;
-  cooldown_seconds: number;
-  rate_limit_rpm: number;
-  memory_mode: "disabled" | "temporary" | "persistent" | "per_user" | "per_channel" | "per_server";
-  max_memory_messages: number;
-  max_response_length: number;
-  streaming_enabled: boolean;
-  typing_indicator: boolean;
-  reply_behavior: "reply_to_message" | "send_to_channel";
-  mention_required: boolean;
-  prefix_trigger: string;
-  persona_id: string;
+  cooldown_seconds?: number;
+  rate_limit_rpm?: number;
+  memory_mode?: "disabled" | "temporary" | "persistent" | "per_user" | "per_channel" | "per_server";
+  max_memory_messages?: number;
+  max_response_length?: number;
+  streaming_enabled?: boolean;
+  typing_indicator?: boolean;
+  reply_behavior?: "reply_to_message" | "send_to_channel";
+  mention_required?: boolean;
+  prefix_trigger?: string;
+  persona_id?: string;
 }
 
 export interface AIPersonaConfig {
