@@ -298,7 +298,7 @@ export const api = {
     }),
 
   testAIProviderConnection: async (providerId: string, profile: any) => {
-    return await request<any>(`/ai/providers/test`, {
+    return await request<any>(`/guilds/ai/providers/test`, {
       method: "POST",
       body: JSON.stringify({ providerId, profile }),
     });

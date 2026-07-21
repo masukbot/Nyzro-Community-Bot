@@ -1878,7 +1878,8 @@ async def test_ai_provider(payload: dict):
     profile = payload.get("profile", {})
     provider_type = profile.get("provider_type", "gemini")
     api_key = profile.get("api_key") or os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY")
-    endpoint = profile.get("endpoint", "")
+    endpoint = (profile.get("endpoint") or "").strip()
+    model_name = profile.get("default_model") or "llama-3.1-8b-instant"
 
     start_time = time.time()
 
@@ -1894,30 +1895,53 @@ async def test_ai_provider(payload: dict):
             async with aiohttp.ClientSession() as session:
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 body = {
-                    "model": profile.get("default_model", "llama-3.3-70b-versatile"),
+                    "model": model_name,
                     "messages": [{"role": "user", "content": "Ping test."}],
                     "max_tokens": 10
                 }
-                async with session.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers, timeout=10) as resp:
+                target_url = "https://api.groq.com/openai/v1/chat/completions"
+                if endpoint and "groq.com" not in endpoint:
+                    target_url = endpoint if endpoint.endswith("/chat/completions") else f"{endpoint.rstrip('/')}/chat/completions"
+                    
+                async with session.post(target_url, json=body, headers=headers, timeout=10) as resp:
                     latency = int((time.time() - start_time) * 1000)
                     if resp.status == 200:
-                        return {"status": "ok", "latency_ms": latency, "message": "Groq Provider connected successfully!"}
+                        return {"status": "ok", "latency_ms": latency, "message": f"Groq ({model_name}) connected successfully!"}
                     err_txt = await resp.text()
-                    return {"status": "error", "latency_ms": latency, "error": f"HTTP {resp.status}: {err_txt[:100]}"}
+                    return {"status": "error", "latency_ms": latency, "error": f"Groq HTTP {resp.status}: {err_txt[:150]}"}
 
         elif provider_type == "gemini":
             if GEMINI_AVAILABLE and api_key:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                model = genai.GenerativeModel(model_name if "gemini" in model_name.lower() else "gemini-1.5-flash")
                 res = model.generate_content("Ping test.")
                 latency = int((time.time() - start_time) * 1000)
-                return {"status": "ok", "latency_ms": latency, "message": "Google Gemini connected successfully!"}
+                return {"status": "ok", "latency_ms": latency, "message": f"Google Gemini ({model_name}) connected successfully!"}
+
+        elif provider_type in ["openai", "openrouter", "deepseek", "together", "mistral", "ollama", "lm_studio", "custom"]:
+            async with aiohttp.ClientSession() as session:
+                headers = {"Content-Type": "application/json"}
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                body = {
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": "Ping test."}],
+                    "max_tokens": 10
+                }
+                base_ep = endpoint or "https://api.openai.com/v1"
+                target_url = base_ep if base_ep.endswith("/chat/completions") else f"{base_ep.rstrip('/')}/chat/completions"
+                async with session.post(target_url, json=body, headers=headers, timeout=10) as resp:
+                    latency = int((time.time() - start_time) * 1000)
+                    if resp.status == 200:
+                        return {"status": "ok", "latency_ms": latency, "message": f"Provider ({provider_type}) connected successfully!"}
+                    err_txt = await resp.text()
+                    return {"status": "error", "latency_ms": latency, "error": f"HTTP {resp.status}: {err_txt[:150]}"}
 
         # Fallback HTTP ping test for custom endpoints
         async with aiohttp.ClientSession() as session:
             async with session.get(endpoint or "https://generativelanguage.googleapis.com", timeout=5) as resp:
                 latency = int((time.time() - start_time) * 1000)
-                return {"status": "ok", "latency_ms": latency, "message": "Endpoint is reachable!"}
+                return {"status": "ok", "latency_ms": latency, "message": "Endpoint reachable."}
     except Exception as e:
         latency = int((time.time() - start_time) * 1000)
         return {"status": "error", "latency_ms": latency, "error": str(e)}
