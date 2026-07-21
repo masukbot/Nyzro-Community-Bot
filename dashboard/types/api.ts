@@ -540,6 +540,7 @@ export interface AITestResult {
 
 export interface EnterpriseAIConfig {
   guild_id: string;
+  ai_enabled?: boolean;
   providers: AIProviderProfile[];
   models: AIModelDefinition[];
   feature_assignments: AIFeatureAssignment[];

@@ -38,7 +38,8 @@ import {
   AdminConfigUpdate,
   StarboardConfig,
   StarboardUpdate,
-  CustomCommandConfig
+  CustomCommandConfig,
+  EnterpriseAIConfig
 } from "@/types/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -258,10 +259,32 @@ export const api = {
 
   // Enterprise AI Management
   getAIConfig: async (guildId: string) => {
+    const initial = getInitialEnterpriseAIConfig(guildId);
     try {
-      return await request<any>(`/guilds/${guildId}/ai`, { next: { revalidate: 0 } });
+      const res = await request<any>(`/guilds/${guildId}/ai`, { next: { revalidate: 0 } });
+      if (!res) return initial;
+      return {
+        ...initial,
+        ...res,
+        stats: { ...initial.stats, ...(res.stats || {}) },
+        providers: Array.isArray(res.providers) ? res.providers : initial.providers,
+        models: Array.isArray(res.models) ? res.models : initial.models,
+        feature_assignments: Array.isArray(res.feature_assignments) ? res.feature_assignments : initial.feature_assignments,
+        chat_channels: Array.isArray(res.chat_channels) ? res.chat_channels : [],
+        personas: Array.isArray(res.personas) ? res.personas : initial.personas,
+        moderation_detectors: Array.isArray(res.moderation_detectors) ? res.moderation_detectors : initial.moderation_detectors,
+        automations: Array.isArray(res.automations) ? res.automations : initial.automations,
+        prompts: Array.isArray(res.prompts) ? res.prompts : initial.prompts,
+        memory: { ...initial.memory, ...(res.memory || {}) },
+        vision: { ...initial.vision, ...(res.vision || {}) },
+        attachment_scanner: { ...initial.attachment_scanner, ...(res.attachment_scanner || {}) },
+        dm_warning: { ...initial.dm_warning, ...(res.dm_warning || {}) },
+        translation: { ...initial.translation, ...(res.translation || {}) },
+        ticket_form_assistant: { ...initial.ticket_form_assistant, ...(res.ticket_form_assistant || {}) },
+        failover: { ...initial.failover, ...(res.failover || {}) }
+      };
     } catch {
-      return getInitialEnterpriseAIConfig(guildId);
+      return initial;
     }
   },
 
@@ -319,7 +342,7 @@ export const api = {
   }
 };
 
-export function getInitialEnterpriseAIConfig(guildId: string) {
+export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfig {
   return {
     guild_id: guildId,
     ai_enabled: false,

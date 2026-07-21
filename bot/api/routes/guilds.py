@@ -1773,6 +1773,7 @@ async def get_ai_config(guild_id: int):
         return AIConfigSchema(guild_id=guild_id, ai_enabled=False)
 
 @router.post("/{guild_id}/ai", summary="Update AI platform configuration")
+@router.patch("/{guild_id}/ai", summary="Update AI platform configuration")
 async def update_ai_config(guild_id: int, data: AIConfigUpdateSchema):
     """
     Saves and updates persistent AI platform configuration for a guild.

@@ -57,7 +57,7 @@ import {
   FileText
 } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, getInitialEnterpriseAIConfig } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
@@ -130,7 +130,30 @@ interface AIManagementDashboardProps {
 }
 
 export function AIManagementDashboard({ initialConfig, guildId, channels }: AIManagementDashboardProps) {
-  const [config, setConfig] = useState<EnterpriseAIConfig>(initialConfig);
+  const [config, setConfig] = useState<EnterpriseAIConfig>(() => {
+    const fallback = getInitialEnterpriseAIConfig(guildId);
+    const cfg = initialConfig || fallback;
+    return {
+      ...fallback,
+      ...cfg,
+      stats: { ...fallback.stats, ...(cfg.stats || {}) },
+      providers: Array.isArray(cfg.providers) ? cfg.providers : fallback.providers,
+      models: Array.isArray(cfg.models) ? cfg.models : fallback.models,
+      feature_assignments: Array.isArray(cfg.feature_assignments) ? cfg.feature_assignments : fallback.feature_assignments,
+      chat_channels: Array.isArray(cfg.chat_channels) ? cfg.chat_channels : [],
+      personas: Array.isArray(cfg.personas) ? cfg.personas : fallback.personas,
+      moderation_detectors: Array.isArray(cfg.moderation_detectors) ? cfg.moderation_detectors : fallback.moderation_detectors,
+      automations: Array.isArray(cfg.automations) ? cfg.automations : fallback.automations,
+      prompts: Array.isArray(cfg.prompts) ? cfg.prompts : fallback.prompts,
+      memory: { ...fallback.memory, ...(cfg.memory || {}) },
+      vision: { ...fallback.vision, ...(cfg.vision || {}) },
+      attachment_scanner: { ...fallback.attachment_scanner, ...(cfg.attachment_scanner || {}) },
+      dm_warning: { ...fallback.dm_warning, ...(cfg.dm_warning || {}) },
+      translation: { ...fallback.translation, ...(cfg.translation || {}) },
+      ticket_form_assistant: { ...fallback.ticket_form_assistant, ...(cfg.ticket_form_assistant || {}) },
+      failover: { ...fallback.failover, ...(cfg.failover || {}) }
+    };
+  });
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [saving, setSaving] = useState(false);
   const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
