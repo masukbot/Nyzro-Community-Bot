@@ -27,6 +27,7 @@ from discord.ext.commands import Cog
 from discord.colour import Color
 import hashlib
 from utils.Tools import *
+from utils.logger import logger
 from traceback import format_exception
 from discord import ButtonStyle
 from discord.ui import Button, View, LayoutView, TextDisplay, Separator, MediaGallery, ActionRow
@@ -139,7 +140,7 @@ class General(commands.Cog):
       view = AvatarView(user, member, ctx.author.id, banner_url)
       await ctx.send(embed=embed, view=view)
     except Exception as e:
-      print(f"Error: {e}")
+      logger.error(f"Error in avatar command: {e}", exc_info=True)
 
   @commands.hybrid_command(
     name="servericon",

@@ -16,6 +16,7 @@ import aiosqlite
 import asyncio
 import random
 from typing import Optional
+from utils.logger import logger
 
 class Database:
     _instance: Optional['Database'] = None
@@ -51,11 +52,11 @@ class Database:
             except aiosqlite.OperationalError as e:
                 if 'database is locked' in str(e).lower():
                     sleep_time = delay * (2 ** attempt) + random.uniform(0, 1)
-                    print(f"Database is locked. Retryng in {sleep_time:.2f} seconds.....")
+                    logger.warning(f"Database is locked. Retrying in {sleep_time:.2f} seconds.....")
                     await asyncio.sleep(sleep_time)
                 else:
                     raise
-        raise Exception("Max retrys.")
+        raise Exception("Max retries.")
 
     async def close(self):
         async with self._lock:
