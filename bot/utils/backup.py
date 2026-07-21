@@ -10,7 +10,7 @@ BACKUP_DIR = "db/backups"
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
 
-def create_backup(db_path: str, backup_name: Optional[str] = None) -&gt; str:
+def create_backup(db_path: str, backup_name: Optional[str] = None) -> str:
     """
     Creates a backup of the given database file.
     :param db_path: Path to the SQLite DB file to back up.
@@ -32,7 +32,7 @@ def create_backup(db_path: str, backup_name: Optional[str] = None) -&gt; str:
     return backup_path
 
 
-def restore_backup(backup_path: str, target_db_path: str, overwrite: bool = False) -&gt; None:
+def restore_backup(backup_path: str, target_db_path: str, overwrite: bool = False) -> None:
     """
     Restores a backup to the target database path.
     :param backup_path: Path to the backup file.
@@ -51,7 +51,7 @@ def restore_backup(backup_path: str, target_db_path: str, overwrite: bool = Fals
     logger.info(f"Backup restored from {backup_path} to {target_db_path}")
 
 
-def list_backups(db_name: Optional[str] = None) -&gt; list[str]:
+def list_backups(db_name: Optional[str] = None) -> list[str]:
     """
     Lists all backup files, optionally filtered by database name.
     :param db_name: Optional name of the DB to filter backups for (e.g., "anti.db").
