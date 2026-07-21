@@ -1,5 +1,7 @@
 
-# Nyzro Discord Bot - Railway হোস্টিং গাইড (বাংলা)
+# Nyzro Discord Bot — Railway হোস্টিং গাইড (বাংলা)
+<p><strong>Founder: Nyzro</strong></p>
+<a href="https://discord.com/oauth2/authorize?client_id=1529198352606953542&permissions=8&integration_type=0&scope=bot+applications.commands"><img src="https://img.shields.io/badge/Invite_Nyzro-5865F2?style=for-the-badge&logo=discord&logoColor=white"/></a>
 
 এই গাইডে আমরা Railway প্ল্যাটফর্মে Nyzro বটটি হোস্ট করার সম্পূর্ণ প্রক্রিয়া ধাপে ধাপে শিখব!
 

@@ -83,12 +83,12 @@ class MentionSelectView(LayoutView):
             content = (
                 "There are only 2 Founders Who Created Me. Thanks You To Them 💞.\n\n"
                 "**The Founder**\n"
-                "**[01]. [Rinox](https://discord.com/users/767979794411028491)**\n**[02]. [Nyzro](https://discord.com/users/870179991462236170)**"
+                "**[01]. [Rinox](https://discord.com/users/1269361665892421742)**\n**[02]. [Nyzro](https://discord.com/users/1326550517555658787)**"
             )
         elif selected == "Links":
             content = (
                 f"**[Invite {BotName}](https://discord.com/oauth2/authorize?client_id=1529198352606953542&permissions=8&integration_type=0&scope=bot+applications.commands)**\n"
-                "**[Join Support Server](https://discord.gg/codexdev)**"
+                "**[Join Support Server](https://discord.gg/EnNQHvf5Z7)**"
             )
 
         new_container = Container(
