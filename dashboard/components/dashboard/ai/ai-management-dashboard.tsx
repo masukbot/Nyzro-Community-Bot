@@ -713,66 +713,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
           </div>
         )}
 
-        {/* 3. AI MODEL LIBRARY */}
-        {activeTab === "models" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Cpu className="h-5 w-5 text-primary" />
-                  AI Model Registry Library
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">Register models, token context limits, cost parameters, and capabilities.</p>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {config.models.map(m => {
-                const parentProvider = config.providers.find(p => p.id === m.provider_id);
-                return (
-                  <div key={m.id} className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-1 bg-primary/20 text-primary border border-primary/30 rounded-lg text-[10px] font-black uppercase">
-                          {parentProvider?.name || "Provider"}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase">{m.speed_rating}</span>
-                      </div>
-
-                      <h4 className="font-black text-white text-lg tracking-tight">{m.model_name}</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{m.description}</p>
-
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {m.supports_vision && <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded text-[10px] font-bold">Vision</span>}
-                        {m.supports_streaming && <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded text-[10px] font-bold">Streaming</span>}
-                        {m.supports_image_gen && <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded text-[10px] font-bold">Image Gen</span>}
-                      </div>
-
-                      <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800 text-xs space-y-1">
-                        <div className="flex justify-between text-slate-400">
-                          <span>Context Window:</span>
-                          <span className="text-white font-mono">{m.context_window.toLocaleString()} tokens</span>
-                        </div>
-                        <div className="flex justify-between text-slate-400">
-                          <span>1M Token Input:</span>
-                          <span className="text-white font-mono">${m.input_cost_per_1m.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-400">
-                          <span>1M Token Output:</span>
-                          <span className="text-white font-mono">${m.output_cost_per_1m.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-800 text-[10px] text-slate-500 italic">
-                      Recommended: {m.recommended_use_cases.join(", ")}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* 4. FEATURE-BASED AI ASSIGNMENT */}
         {activeTab === "assignment" && (
@@ -1061,62 +1002,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
           </div>
         )}
 
-        {/* 7. AI MEMORY SYSTEM */}
-        {activeTab === "memory" && (
-          <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6 max-w-3xl">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              AI Conversation Memory Architecture
-            </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase">Memory Scope Mode</label>
-                <Select
-                  value={config.memory.global_mode}
-                  onValueChange={(val: any) => setConfig(prev => ({ ...prev, memory: { ...prev.memory, global_mode: val } }))}
-                  options={[
-                    { value: "disabled", label: "Disabled (Stateless)" },
-                    { value: "temporary", label: "Temporary (Session Only)" },
-                    { value: "persistent", label: "Persistent DB Storage" },
-                    { value: "per_user", label: "Per User Memory" },
-                    { value: "per_channel", label: "Per Channel Memory" },
-                    { value: "per_server", label: "Per Server Memory" },
-                  ]}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase">Max History Messages</label>
-                <Input
-                  type="number"
-                  value={config.memory.max_messages_per_conversation}
-                  onChange={(e) => setConfig(prev => ({ ...prev, memory: { ...prev.memory, max_messages_per_conversation: parseInt(e.target.value) || 10 } }))}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase">Expiration (Hours)</label>
-                <Input
-                  type="number"
-                  value={config.memory.expiration_hours}
-                  onChange={(e) => setConfig(prev => ({ ...prev, memory: { ...prev.memory, expiration_hours: parseInt(e.target.value) || 24 } }))}
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
-                <span className="text-xs font-bold text-slate-300">Auto Memory Cleanup</span>
-                <Switch
-                  checked={config.memory.auto_cleanup}
-                  onCheckedChange={(val) => setConfig(prev => ({ ...prev, memory: { ...prev.memory, auto_cleanup: val } }))}
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* 8. AI MODERATION CENTER */}
         {activeTab === "moderation" && (
