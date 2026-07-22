@@ -244,7 +244,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       channel_name: targetChan ? `#${targetChan.name}` : selectedNewChannelId,
       enabled: true,
       mode: "reply_all" as const,
-      model_id: "m1",
+      model_id: undefined as string | undefined,
       system_prompt: "You are Nyzro AI assistant. Help community members politely.",
       temperature: 0.7
     };
@@ -396,15 +396,35 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
     });
   };
 
-  // Delete Provider Profile with Confirmation
+  // Delete Provider Profile with Confirmation + cleanup of orphaned references
   const handleDeleteProvider = (id: string) => {
     const target = config.providers.find(p => p.id === id);
     requestConfirmation(
       `Delete Provider Profile "${target?.name || id}"?`,
-      `This will permanently remove this AI provider profile and its API key configuration from your server.`,
+      `This will permanently remove this AI provider profile, its models, and clear any references from feature assignments and chat channels.`,
       () => {
-        setConfig(prev => ({ ...prev, providers: prev.providers.filter(p => p.id !== id) }));
-        toast.success("Provider profile deleted.");
+        setConfig(prev => {
+          const orphanedModelIds = prev.models.filter(m => m.provider_id === id).map(m => m.id);
+          return {
+            ...prev,
+            providers: prev.providers.filter(p => p.id !== id),
+            models: prev.models.filter(m => m.provider_id !== id),
+            feature_assignments: prev.feature_assignments.map(fa => ({
+              ...fa,
+              assigned_model_id: orphanedModelIds.includes(fa.assigned_model_id) ? "" : fa.assigned_model_id,
+              fallback_model_id: orphanedModelIds.includes(fa.fallback_model_id) ? "" : fa.fallback_model_id,
+            })),
+            chat_channels: prev.chat_channels.map(ch => ({
+              ...ch,
+              model_id: orphanedModelIds.includes(ch.model_id) ? undefined : ch.model_id,
+            })),
+            failover: prev.failover ? {
+              ...prev.failover,
+              provider_priority: (prev.failover.provider_priority || []).filter(pid => pid !== id),
+            } : prev.failover,
+          };
+        });
+        toast.success("Provider profile and all related references cleaned up.");
       }
     );
   };
