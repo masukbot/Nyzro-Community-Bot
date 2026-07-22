@@ -105,6 +105,7 @@ export function FloatingLayer({
 }: FloatingLayerProps) {
   const floatRef = React.useRef<HTMLDivElement>(null)
   const [coords, setCoords] = React.useState({ top: 0, left: 0, width: 0 })
+  const [hidden, setHidden] = React.useState(true)
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
@@ -123,23 +124,38 @@ export function FloatingLayer({
 
     const { top, left } = computeCoords(tRect, { ...fRect, width: w }, side, align, sideOffset, window.innerWidth, window.innerHeight, autoFlip)
     setCoords({ top, left, width: w })
+    setHidden(false)
   }, [placement, sideOffset, autoFlip, matchTriggerWidth, minWidth, maxWidth, triggerRef])
 
-  React.useEffect(() => {
-    if (!open) return
+  React.useLayoutEffect(() => {
+    if (!open) {
+      setHidden(true)
+      return
+    }
+
     position()
 
     const handleResize = () => position()
+    const handleScroll = () => position()
     window.addEventListener("resize", handleResize)
-    window.addEventListener("scroll", position, true)
-    const interval = setInterval(position, 250)
+    window.addEventListener("scroll", handleScroll, true)
+
+    const ro = new ResizeObserver(() => position())
+    if (triggerRef.current) ro.observe(triggerRef.current)
 
     return () => {
       window.removeEventListener("resize", handleResize)
-      window.removeEventListener("scroll", position, true)
-      clearInterval(interval)
+      window.removeEventListener("scroll", handleScroll, true)
+      ro.disconnect()
     }
-  }, [open, position])
+  }, [open, position, triggerRef])
+
+  React.useLayoutEffect(() => {
+    if (!open || !floatRef.current) return
+    const ro = new ResizeObserver(() => position())
+    ro.observe(floatRef.current)
+    return () => ro.disconnect()
+  }, [open, position, floatRef])
 
   React.useEffect(() => {
     if (!open) return
@@ -174,11 +190,13 @@ export function FloatingLayer({
         top: coords.top,
         left: coords.left,
         width: coords.width || undefined,
+        visibility: hidden ? "hidden" : undefined,
+        pointerEvents: hidden ? "none" : undefined,
         zIndex,
       }}
       className={cn(
         "rounded-xl border border-slate-800 bg-[#141B2D] p-1 shadow-2xl",
-        "animate-in fade-in zoom-in-95 duration-200",
+        hidden ? "opacity-0" : "animate-in fade-in zoom-in-95 duration-200",
         anchorTop
           ? side === "bottom" ? "slide-in-from-top-1" : "slide-in-from-bottom-1"
           : side === "right" ? "slide-in-from-left-1" : "slide-in-from-right-1",
