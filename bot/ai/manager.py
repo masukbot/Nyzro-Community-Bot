@@ -51,7 +51,9 @@ class AIManager:
         self.providers.clear()
 
         # Load providers from guild config
-        raw_providers = data.get("providers") or data.get("provider_profiles", [])
+        raw_providers = data.get("providers")
+        if raw_providers is None:
+            raw_providers = data.get("provider_profiles", [])
         for p_cfg in raw_providers:
             pid = p_cfg.get("id")
             if not pid:
@@ -64,7 +66,9 @@ class AIManager:
                 logger.error(f"Failed to load provider '{pid}': {e}")
 
         # Register models from guild config
-        raw_models = data.get("models") or data.get("model_definitions", [])
+        raw_models = data.get("models")
+        if raw_models is None:
+            raw_models = data.get("model_definitions", [])
         for m_cfg in raw_models:
             mid = m_cfg.get("id") or m_cfg.get("model_id")
             if not mid:

@@ -627,10 +627,14 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                         <label className="text-[10px] font-bold text-slate-500 uppercase">Model</label>
                         <Input
                           value={p.default_model}
-                          onChange={(e) => setConfig(prev => ({
-                            ...prev,
-                            providers: prev.providers.map(item => item.id === p.id ? { ...item, default_model: e.target.value } : item)
-                          }))}
+                          onChange={(e) => setConfig(prev => {
+                            const newModel = e.target.value;
+                            return {
+                              ...prev,
+                              providers: prev.providers.map(item => item.id === p.id ? { ...item, default_model: newModel } : item),
+                              models: prev.models.map(m => m.provider_id === p.id ? { ...m, model_name: newModel } : m)
+                            };
+                          })}
                           className="bg-slate-900/60 border-slate-800 text-xs mt-1"
                         />
                       </div>

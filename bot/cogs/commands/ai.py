@@ -1771,8 +1771,6 @@ Support server: https://discord.gg/codexdev"""
                 return
 
             data = json.loads(row[1])
-            if not data.get("ai_enabled", row[0]):
-                return
 
             chat_channels = data.get("chat_channels", [])
 
