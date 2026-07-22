@@ -450,17 +450,6 @@ export interface AIAttachmentScanner {
   model_id: string;
 }
 
-export interface AIDmWarningWorkflow {
-  guild_id: string;
-  enabled: boolean;
-  warning_template: string;
-  languages: string[];
-  cooldown_seconds: number;
-  appeal_button_enabled: boolean;
-  notify_moderators: boolean;
-  log_channel_id: string;
-}
-
 export interface AITranslationConfig {
   guild_id: string;
   enabled: boolean;
