@@ -416,7 +416,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
             })),
             chat_channels: prev.chat_channels.map(ch => ({
               ...ch,
-              model_id: orphanedModelIds.includes(ch.model_id) ? undefined : ch.model_id,
+              model_id: ch.model_id && orphanedModelIds.includes(ch.model_id) ? undefined : ch.model_id,
             })),
             failover: prev.failover ? {
               ...prev.failover,
