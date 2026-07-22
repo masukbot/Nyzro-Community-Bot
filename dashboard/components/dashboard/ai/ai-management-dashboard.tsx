@@ -229,6 +229,44 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
   const [newProviderEndpoint, setNewProviderEndpoint] = useState("https://generativelanguage.googleapis.com");
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const [selectedNewChannelId, setSelectedNewChannelId] = useState<string>("");
+  const [manualUserId, setManualUserId] = useState("");
+  const [manualFeatureKey, setManualFeatureKey] = useState("manual");
+  const [manualReason, setManualReason] = useState("");
+  const [manualMessage, setManualMessage] = useState("");
+  const [manualImageUrl, setManualImageUrl] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSendManualWarning = async () => {
+    if (!manualUserId) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/ai/dm-warning/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: manualUserId,
+          reason: manualReason || "Staff issued warning",
+          feature_key: manualFeatureKey,
+          message: manualMessage,
+          image_url: manualImageUrl,
+        }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast.success("DM warning sent successfully!");
+        setManualUserId("");
+        setManualReason("");
+        setManualMessage("");
+        setManualImageUrl("");
+      } else {
+        toast.error(data.detail || "Failed to send DM warning");
+      }
+    } catch (err) {
+      toast.error("Failed to send DM warning");
+    } finally {
+      setSending(false);
+    }
+  };
 
   const handleAddChatChannel = () => {
     if (!selectedNewChannelId) return;
@@ -1199,44 +1237,292 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
 
         {/* 10. DM WARNINGS */}
         {activeTab === "dm_warnings" && (
-          <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6 max-w-3xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
-                AI DM Warning & Appeal Workflow
-              </h3>
-              <Switch
-                checked={config.dm_warning.enabled}
-                onCheckedChange={(val) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, enabled: val } }))}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase">Warning Message Template</label>
-              <Textarea
-                rows={4}
-                value={config.dm_warning.warning_template}
-                onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, warning_template: e.target.value } }))}
-                className="bg-slate-900/60 border-slate-800 text-xs mt-2"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
-                <span className="text-xs font-bold text-slate-300">Appeal Button</span>
+          <div className="max-w-5xl space-y-6">
+            {/* ── Header ── */}
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" />
+                  AI DM Warning & Appeal Workflow
+                </h3>
                 <Switch
-                  checked={config.dm_warning.appeal_button_enabled}
-                  onCheckedChange={(val) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, appeal_button_enabled: val } }))}
+                  checked={config.dm_warning.enabled}
+                  onCheckedChange={(val) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, enabled: val } }))}
                 />
               </div>
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Default Format</label>
+                  <select className="w-full bg-slate-900/60 border border-slate-800 rounded-xl p-2 text-xs text-white mt-1"
+                    value={config.dm_warning.format}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, format: e.target.value as "embed" | "normal" } }))}
+                  >
+                    <option value="embed">Embed</option>
+                    <option value="normal">Normal Message</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Default Embed Color</label>
+                  <div className="flex gap-2 items-center mt-1">
+                    <input type="color" className="h-8 w-8 rounded cursor-pointer"
+                      value={config.dm_warning.color || "#FF4444"}
+                      onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, color: e.target.value } }))}
+                    />
+                    <Input className="bg-slate-900/60 border-slate-800 text-xs flex-1"
+                      value={config.dm_warning.color || "#FF4444"}
+                      onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, color: e.target.value } }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
+                  <span className="text-xs font-bold text-slate-300">Notify Mods</span>
+                  <Switch
+                    checked={config.dm_warning.notify_moderators}
+                    onCheckedChange={(val) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, notify_moderators: val } }))}
+                  />
+                </div>
+              </div>
+            </div>
 
-              <div className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
-                <span className="text-xs font-bold text-slate-300">Notify Mods</span>
+            {/* ── Per-Feature Templates ── */}
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <h4 className="text-lg font-bold text-white">Per-Feature Templates</h4>
+              <p className="text-xs text-slate-400">Customize DM templates for each AI feature. Available variables: <code className="text-primary">{"{guild_name}"}</code> <code className="text-primary">{"{reason}"}</code> <code className="text-primary">{"{strikes}"}</code> <code className="text-primary">{"{max_strikes}"}</code></p>
+              {Object.entries(config.dm_warning.per_feature || {}).map(([key, feat]: [string, any]) => (
+                <details key={key} className="bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden">
+                  <summary className="p-4 cursor-pointer flex items-center justify-between hover:bg-slate-800/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        checked={feat.enabled}
+                        onCheckedChange={(val) => setConfig(prev => ({
+                          ...prev, dm_warning: {
+                            ...prev.dm_warning, per_feature: {
+                              ...prev.dm_warning.per_feature,
+                              [key]: { ...prev.dm_warning.per_feature[key], enabled: val }
+                            }
+                          }
+                        }))}
+                      />
+                      <span className="text-sm font-bold text-slate-200 capitalize">{key.replace(/_/g, " ")}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span className={`px-2 py-0.5 rounded-full ${feat.format === "embed" ? "bg-blue-500/20 text-blue-400" : "bg-slate-600/20 text-slate-400"}`}>{feat.format}</span>
+                    </div>
+                  </summary>
+                  <div className="p-4 border-t border-slate-800 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Title</label>
+                        <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                          value={feat.title || ""}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev, dm_warning: {
+                              ...prev.dm_warning, per_feature: {
+                                ...prev.dm_warning.per_feature,
+                                [key]: { ...prev.dm_warning.per_feature[key], title: e.target.value }
+                              }
+                            }
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Format</label>
+                        <select className="w-full bg-slate-900/60 border border-slate-800 rounded-xl p-2 text-xs text-white mt-1"
+                          value={feat.format}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev, dm_warning: {
+                              ...prev.dm_warning, per_feature: {
+                                ...prev.dm_warning.per_feature,
+                                [key]: { ...prev.dm_warning.per_feature[key], format: e.target.value }
+                              }
+                            }
+                          }))}
+                        >
+                          <option value="embed">Embed</option>
+                          <option value="normal">Normal Message</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Color</label>
+                      <div className="flex gap-2 items-center mt-1">
+                        <input type="color" className="h-8 w-8 rounded cursor-pointer"
+                          value={feat.color || "#FF4444"}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev, dm_warning: {
+                              ...prev.dm_warning, per_feature: {
+                                ...prev.dm_warning.per_feature,
+                                [key]: { ...prev.dm_warning.per_feature[key], color: e.target.value }
+                              }
+                            }
+                          }))}
+                        />
+                        <Input className="bg-slate-900/60 border-slate-800 text-xs flex-1"
+                          value={feat.color || "#FF4444"}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev, dm_warning: {
+                              ...prev.dm_warning, per_feature: {
+                                ...prev.dm_warning.per_feature,
+                                [key]: { ...prev.dm_warning.per_feature[key], color: e.target.value }
+                              }
+                            }
+                          }))}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Template</label>
+                      <Textarea rows={3} className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                        placeholder="Leave blank to use default template"
+                        value={feat.template || ""}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev, dm_warning: {
+                            ...prev.dm_warning, per_feature: {
+                              ...prev.dm_warning.per_feature,
+                              [key]: { ...prev.dm_warning.per_feature[key], template: e.target.value }
+                            }
+                          }
+                        }))}
+                      />
+                    </div>
+                  </div>
+                </details>
+              ))}
+            </div>
+
+            {/* ── Strike System ── */}
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-bold text-white">Strike System</h4>
                 <Switch
-                  checked={config.dm_warning.notify_moderators}
-                  onCheckedChange={(val) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, notify_moderators: val } }))}
+                  checked={config.dm_warning.strikes?.enabled || false}
+                  onCheckedChange={(val) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, strikes: { ...prev.dm_warning.strikes, enabled: val } } }))}
                 />
               </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Max Strikes</label>
+                  <Input type="number" min={1} max={20} className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                    value={config.dm_warning.strikes?.max_strikes || 3}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, strikes: { ...prev.dm_warning.strikes, max_strikes: parseInt(e.target.value) || 3 } } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Action on Limit</label>
+                  <select className="w-full bg-slate-900/60 border border-slate-800 rounded-xl p-2 text-xs text-white mt-1"
+                    value={config.dm_warning.strikes?.action || "mute"}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, strikes: { ...prev.dm_warning.strikes, action: e.target.value } } }))}
+                  >
+                    <option value="mute">Timeout (Mute)</option>
+                    <option value="kick">Kick</option>
+                    <option value="ban">Ban</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Duration (minutes)</label>
+                  <Input type="number" min={1} max={40320} className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                    value={config.dm_warning.strikes?.action_duration_minutes || 60}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, strikes: { ...prev.dm_warning.strikes, action_duration_minutes: parseInt(e.target.value) || 60 } } }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Appeal Config ── */}
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-bold text-white">Appeal System</h4>
+                <Switch
+                  checked={config.dm_warning.appeal?.enabled || false}
+                  onCheckedChange={(val) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, appeal: { ...prev.dm_warning.appeal, enabled: val } } }))}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Appeal Channel ID</label>
+                  <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                    placeholder="Channel where appeals appear"
+                    value={config.dm_warning.appeal?.channel_id || ""}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, appeal: { ...prev.dm_warning.appeal, channel_id: e.target.value || null } } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Category ID (optional)</label>
+                  <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                    placeholder="Category for appeal threads"
+                    value={config.dm_warning.appeal?.category_id || ""}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, appeal: { ...prev.dm_warning.appeal, category_id: e.target.value || null } } }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Cooldown (hours)</label>
+                  <Input type="number" min={1} max={168} className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                    value={config.dm_warning.appeal?.cooldown_hours || 24}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, appeal: { ...prev.dm_warning.appeal, cooldown_hours: parseInt(e.target.value) || 24 } } }))}
+                  />
+                </div>
+              </div>
+              <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-700/50">
+                <p className="text-xs text-slate-400">
+                  When a user clicks the <strong className="text-white">Appeal Warning</strong> button in their DM, a modal opens where they explain their appeal.
+                  The appeal is sent to the configured channel or a new thread is created in the specified category.
+                </p>
+              </div>
+            </div>
+
+            {/* ── Manual Send ── */}
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <h4 className="text-lg font-bold text-white">Manual DM Warning</h4>
+              <p className="text-xs text-slate-400">Send a custom DM warning to any user manually.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">User ID</label>
+                  <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                    placeholder="Discord User ID" value={manualUserId}
+                    onChange={(e) => setManualUserId(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Feature Preset</label>
+                  <select className="w-full bg-slate-900/60 border border-slate-800 rounded-xl p-2 text-xs text-white mt-1"
+                    value={manualFeatureKey}
+                    onChange={(e) => setManualFeatureKey(e.target.value)}
+                  >
+                    {Object.keys(config.dm_warning.per_feature || {}).map(k => (
+                      <option key={k} value={k}>{k.replace(/_/g, " ")}</option>
+                    ))}
+                    <option value="manual">Manual (Staff Warning)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Reason</label>
+                <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                  placeholder="Reason for the warning" value={manualReason}
+                  onChange={(e) => setManualReason(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Custom Message (optional)</label>
+                <Textarea rows={3} className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                  placeholder="Leave blank to use the template for selected feature"
+                  value={manualMessage}
+                  onChange={(e) => setManualMessage(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Image URL (optional)</label>
+                <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                  placeholder="https://example.com/warning.png" value={manualImageUrl}
+                  onChange={(e) => setManualImageUrl(e.target.value)}
+                />
+              </div>
+              <Button className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold"
+                onClick={handleSendManualWarning}
+                disabled={!manualUserId || sending}
+              >
+                {sending ? "Sending..." : "Send DM Warning"}
+              </Button>
             </div>
           </div>
         )}

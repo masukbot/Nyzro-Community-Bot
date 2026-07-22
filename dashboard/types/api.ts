@@ -538,6 +538,35 @@ export interface AITestResult {
   debug_logs: string[];
 }
 
+export interface AIDmWarningWorkflow {
+  enabled: boolean;
+  format: "embed" | "normal";
+  warning_template: string;
+  color: string;
+  notify_moderators: boolean;
+  per_feature: {
+    [key: string]: {
+      enabled: boolean;
+      template: string;
+      format: "embed" | "normal";
+      title: string;
+      color: string;
+    }
+  };
+  strikes: {
+    enabled: boolean;
+    max_strikes: number;
+    action: "mute" | "kick" | "ban";
+    action_duration_minutes: number;
+  };
+  appeal: {
+    enabled: boolean;
+    channel_id: string | null;
+    category_id: string | null;
+    cooldown_hours: number;
+  };
+}
+
 export interface EnterpriseAIConfig {
   guild_id: string;
   ai_enabled?: boolean;

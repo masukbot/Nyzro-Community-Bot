@@ -536,14 +536,32 @@ export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfi
       model_id: ""
     },
     dm_warning: {
-      guild_id: guildId,
       enabled: false,
-      warning_template: "Hello {user}, your recent message in **{server}** was automatically flagged by our AI Moderation System for reason: **{reason}**. Please follow the server guidelines.",
-      languages: ["English", "Spanish", "French", "German"],
-      cooldown_seconds: 60,
-      appeal_button_enabled: true,
+      format: "embed",
+      warning_template: "You received a warning in **{guild_name}**.\nReason: {reason} [{strikes}/{max_strikes}]",
+      color: "#FF4444",
       notify_moderators: true,
-      log_channel_id: ""
+      per_feature: {
+        moderation_ai: { enabled: true, template: "", format: "embed", title: "Content Removed", color: "#FF0000" },
+        auto_moderation: { enabled: true, template: "", format: "embed", title: "Auto Warning", color: "#FFA500" },
+        toxicity_detection: { enabled: true, template: "", format: "embed", title: "Toxicity Warning", color: "#FF4444" },
+        spam_detection: { enabled: true, template: "", format: "embed", title: "Spam Detected", color: "#888888" },
+        scam_image_detection: { enabled: true, template: "", format: "embed", title: "Scam Content", color: "#DC143C" },
+        nsfw_detection: { enabled: true, template: "", format: "embed", title: "NSFW Content", color: "#8B0000" },
+        manual: { enabled: true, template: "", format: "embed", title: "Staff Warning", color: "#5865F2" }
+      },
+      strikes: {
+        enabled: false,
+        max_strikes: 3,
+        action: "mute",
+        action_duration_minutes: 60
+      },
+      appeal: {
+        enabled: true,
+        channel_id: null,
+        category_id: null,
+        cooldown_hours: 24
+      }
     },
     translation: {
       guild_id: guildId,
