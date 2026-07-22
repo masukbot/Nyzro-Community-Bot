@@ -94,15 +94,22 @@ class AppealModal(discord.ui.Modal, title="Appeal Your Warning"):
         if not guild:
             return
         appeal_cfg = self.dm_cfg.get("appeal", {})
-        channel_id = appeal_cfg.get("channel_id")
-        category_id = appeal_cfg.get("category_id")
         target = None
-        if channel_id:
-            target = guild.get_channel(int(channel_id))
-        if not target and category_id:
-            cat = guild.get_channel(int(category_id))
-            if cat:
-                target = await guild.create_text_channel(name=f"appeal-{self.user_id}", category=cat)
+        raw_ch = appeal_cfg.get("channel_id")
+        if raw_ch:
+            try:
+                target = guild.get_channel(int(raw_ch))
+            except (ValueError, TypeError):
+                pass
+        if not target:
+            raw_cat = appeal_cfg.get("category_id")
+            if raw_cat:
+                try:
+                    cat = guild.get_channel(int(raw_cat))
+                    if cat:
+                        target = await guild.create_text_channel(name=f"appeal-{self.user_id}", category=cat)
+                except (ValueError, TypeError):
+                    pass
         if not target:
             for chan in guild.text_channels:
                 if chan.permissions_for(guild.me).send_messages and "appeal" in chan.name.lower():
@@ -117,7 +124,7 @@ class AppealModal(discord.ui.Modal, title="Appeal Your Warning"):
                                   description=self.reason.value[:1000])
             embed.set_author(name=f"User ID: {self.user_id}")
             embed.timestamp = discord.utils.utcnow()
-            await target.send(f"<@&{guild.id}> New appeal from <@{self.user_id}>", embed=embed, view=view)
+            await target.send(f"New appeal from <@{self.user_id}>", embed=embed, view=view)
         except Exception as e:
             logger.error(f"Failed to send appeal: {e}")
 
