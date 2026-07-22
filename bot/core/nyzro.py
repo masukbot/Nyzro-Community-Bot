@@ -50,13 +50,15 @@ class nyzro(commands.AutoShardedBot):
                          owner_ids=OWNER_IDS,
                          allowed_mentions=discord.AllowedMentions(
                              everyone=False, replied_user=False, roles=False),
-                         sync_commands_debug=True,
-                         sync_commands=True,
+                         sync_commands_debug=False,
+                         sync_commands=False,
                          shard_count=1)
         self.status_index = 0
         self.status_list = []
 
     async def setup_hook(self):
+        import discord
+        discord.app_commands.CommandTree.MAX_GLOBAL_COMMANDS = 999
         await self.load_extensions()
         self.status_task.start()
 

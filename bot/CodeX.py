@@ -107,9 +107,15 @@ async def on_ready():
 
     async def sync_commands():
         try:
-            synced = await client.tree.sync()
+            synced_total = 0
+            for guild in client.guilds:
+                try:
+                    synced = await client.tree.sync(guild=guild)
+                    synced_total += len(synced)
+                except Exception:
+                    pass
             all_commands = list(client.commands)
-            logger.info(f"Synced Total {len(all_commands)} Client Commands and {len(synced)} Slash Commands")
+            logger.info(f"Synced Total {len(all_commands)} Client Commands and {synced_total} Slash Commands")
         except Exception as e:
             logger.error(f"Error syncing command tree: {e}", exc_info=True)
 
