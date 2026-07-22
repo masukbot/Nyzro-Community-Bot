@@ -25,7 +25,11 @@ const TicketsForm = dynamic(() => import("@/components/dashboard/tickets-form").
 });
 
 export default async function TicketsPage({ params }: { params: { guildId: string } }) {
-  const config = await api.getTickets(params.guildId);
+  const [config, channels, roles] = await Promise.all([
+    api.getTickets(params.guildId),
+    api.getChannels(params.guildId).catch(() => []),
+    api.getRoles(params.guildId).catch(() => []),
+  ]);
 
   if (!config) return null;
 
@@ -44,14 +48,10 @@ export default async function TicketsPage({ params }: { params: { guildId: strin
             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-emerald-500 uppercase">Live System</span>
           </div>
-          {/* <Button variant="outline" className="gap-2">
-            <ExternalLink className="h-4 w-4" />
-            Preview Panel
-          </Button> */}
         </div>
       </div>
 
-      <TicketsForm initialConfig={config} guildId={params.guildId} />
+      <TicketsForm initialConfig={config} guildId={params.guildId} channels={channels} roles={roles} />
     </div>
   );
 }

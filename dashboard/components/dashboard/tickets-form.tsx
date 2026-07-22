@@ -39,19 +39,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TicketConfig, TicketCategory, TicketEmbed } from "@/types/api";
+import { TicketConfig, TicketCategory, TicketEmbed, DiscordChannel, DiscordRole } from "@/types/api";
 
 interface TicketsFormProps {
   initialConfig: TicketConfig;
   guildId: string;
+  channels: DiscordChannel[];
+  roles: DiscordRole[];
 }
 
-export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
+export function TicketsForm({ initialConfig, guildId, channels, roles }: TicketsFormProps) {
   const [config, setConfig] = useState<TicketConfig>(initialConfig);
   const [saving, setSaving] = useState(false);
   const [editingCategory, setEditingCategory] = useState<{index: number, data: TicketCategory} | null>(null);
   const [editingEmbed, setEditingEmbed] = useState<TicketEmbed | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+
+  const textChannels = channels.filter(c => c.type === "text" || c.type === "0");
+  const categoryChannels = channels.filter(c => c.type === "category" || c.type === "4");
+
+  const channelOptions = [{ value: "", label: "-- Select Channel --" }, ...textChannels.map(c => ({ value: c.id, label: `#${c.name}` }))];
+  const categoryOptions = [{ value: "", label: "-- Select Category --" }, ...categoryChannels.map(c => ({ value: c.id, label: c.name }))];
+  const roleOptions = [{ value: "", label: "-- Add Role --" }, ...roles.map(r => ({ value: String(r.id), label: `@${r.name}` }))];
 
   async function fetchUpdatedConfig() {
     try {
@@ -165,18 +174,35 @@ export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Staff Roles (IDs)</label>
-                    <Input 
-                        value={editingCategory.data.staff_roles.join(", ")} 
-                        onChange={(e) => {
-                          const roles = e.target.value.split(",").map(id => id.trim()).filter(id => id && !isNaN(Number(id))).map(Number);
-                          setEditingCategory({
-                            ...editingCategory, 
-                            data: { ...editingCategory.data, staff_roles: roles }
-                          })
-                        }}
-                        placeholder="ID1, ID2..."
-                    />
+                    <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Staff Roles</label>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {editingCategory.data.staff_roles.map(rid => {
+                        const role = roles.find(r => r.id === String(rid));
+                        return (
+                          <span key={rid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-800 rounded-full text-[10px] font-bold text-slate-200">
+                            @{role?.name || rid}
+                            <button onClick={() => setEditingCategory({...editingCategory, data: {...editingCategory.data, staff_roles: editingCategory.data.staff_roles.filter(id => id !== rid)}})} className="text-slate-500 hover:text-red-400">&times;</button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <Select
+                      value=""
+                      onValueChange={(val) => {
+                        if (val && !editingCategory.data.staff_roles.includes(Number(val))) {
+                          setEditingCategory({...editingCategory, data: {...editingCategory.data, staff_roles: [...editingCategory.data.staff_roles, Number(val)]}});
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="bg-slate-900/50 border-slate-800">
+                        <SelectValue placeholder="Add a role..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-800">
+                        {roleOptions.map(o => (
+                          <SelectItem key={o.value} value={o.value} disabled={o.value === "" || editingCategory.data.staff_roles.includes(Number(o.value))}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -202,15 +228,20 @@ export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Discord Category ID</label>
-                    <Input 
-                        value={editingCategory.data.discord_category_id || ""} 
-                        onChange={(e) => setEditingCategory({
-                          ...editingCategory, 
-                          data: { ...editingCategory.data, discord_category_id: e.target.value }
-                        })}
-                        placeholder="Created tickets go here"
-                    />
+                    <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Ticket Category</label>
+                    <Select
+                      value={editingCategory.data.discord_category_id || ""}
+                      onValueChange={(val) => setEditingCategory({...editingCategory, data: {...editingCategory.data, discord_category_id: val}})}
+                    >
+                      <SelectTrigger className="bg-slate-900/50 border-slate-800">
+                        <SelectValue placeholder="Where created tickets go" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-800">
+                        {categoryOptions.map(o => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 
@@ -308,28 +339,52 @@ export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Panel Channel ID</label>
-                <Input 
-                  value={config.panel_channel || ""} 
-                  onChange={(e) => setConfig({...config, panel_channel: e.target.value})}
-                  placeholder="Where the ticket panel lives"
-                />
+                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Panel Channel</label>
+                <Select
+                  value={config.panel_channel || ""}
+                  onValueChange={(val) => setConfig({...config, panel_channel: val || null})}
+                >
+                  <SelectTrigger className="bg-slate-900/50 border-slate-800">
+                    <SelectValue placeholder="Select the panel channel" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800">
+                    {channelOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Logging Channel ID</label>
-                <Input 
-                  value={config.logging_channel || ""} 
-                  onChange={(e) => setConfig({...config, logging_channel: e.target.value})}
-                  placeholder="Where transcripts go"
-                />
+                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Logging Channel</label>
+                <Select
+                  value={config.logging_channel || ""}
+                  onValueChange={(val) => setConfig({...config, logging_channel: val || null})}
+                >
+                  <SelectTrigger className="bg-slate-900/50 border-slate-800">
+                    <SelectValue placeholder="Where transcripts go" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800">
+                    {channelOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Closed Tickets Category ID</label>
-                <Input 
-                  value={config.closed_category || ""} 
-                  onChange={(e) => setConfig({...config, closed_category: e.target.value})}
-                  placeholder="Archive closed tickets here"
-                />
+                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Closed Tickets Category</label>
+                <Select
+                  value={config.closed_category || ""}
+                  onValueChange={(val) => setConfig({...config, closed_category: val || null})}
+                >
+                  <SelectTrigger className="bg-slate-900/50 border-slate-800">
+                    <SelectValue placeholder="Archive closed tickets here" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800">
+                    {categoryOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Panel Interaction Type</label>
@@ -347,15 +402,35 @@ export function TicketsForm({ initialConfig, guildId }: TicketsFormProps) {
                 </Select>
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Global Staff Role IDs</label>
-                <Input 
-                  value={config.staff_roles.join(", ")} 
-                  onChange={(e) => {
-                    const roles = e.target.value.split(",").map(id => id.trim()).filter(id => id && !isNaN(Number(id))).map(Number);
-                    setConfig({...config, staff_roles: roles})
+                <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Global Staff Roles</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {config.staff_roles.map(rid => {
+                    const role = roles.find(r => r.id === String(rid));
+                    return (
+                      <span key={rid} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-800 rounded-full text-[11px] font-bold text-slate-200">
+                        @{role?.name || rid}
+                        <button onClick={() => setConfig({...config, staff_roles: config.staff_roles.filter(id => id !== rid)})} className="text-slate-500 hover:text-red-400 ml-1">&times;</button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <Select
+                  value=""
+                  onValueChange={(val) => {
+                    if (val && !config.staff_roles.includes(Number(val))) {
+                      setConfig({...config, staff_roles: [...config.staff_roles, Number(val)]});
+                    }
                   }}
-                  placeholder="ID1, ID2... These roles can see all tickets"
-                />
+                >
+                  <SelectTrigger className="bg-slate-900/50 border-slate-800">
+                    <SelectValue placeholder="Add a staff role..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800">
+                    {roleOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value} disabled={o.value === "" || config.staff_roles.includes(Number(o.value))}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
