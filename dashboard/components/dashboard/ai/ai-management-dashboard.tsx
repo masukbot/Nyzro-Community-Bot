@@ -839,7 +839,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
               <p className="text-xs text-slate-400 mt-1">Bind individual AI models and fallbacks to specific system features.</p>
             </div>
 
-            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl shadow-xl">
               <div className="divide-y divide-slate-800">
                 {config.feature_assignments.map(feat => (
                   <div key={feat.feature_key} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-slate-900/20 transition-colors">
@@ -1053,7 +1053,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
           </div>
         )}
 
-        {/* 6. AI PERSONAS */}
+        {/* 6. ADMIN AI */}
         {activeTab === "admin_ai" && (
           <div className="space-y-6">
             <div>
@@ -1064,9 +1064,9 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
               <p className="text-xs text-slate-400 mt-1">Designate a channel where you can talk to the AI and it will execute server admin actions (roles, channels, members, messages) based on your requests.</p>
             </div>
 
-            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-8 shadow-xl space-y-8 max-w-3xl">
-              <div className="flex items-center justify-between">
-                <div>
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl space-y-6 lg:space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-white text-base">Enable Admin AI</h4>
                   <p className="text-xs text-slate-500 mt-0.5">Toggle the admin_ai feature in Feature Mapping to activate</p>
                 </div>
@@ -1100,12 +1100,12 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-white text-base">AI Model</h4>
                     <p className="text-xs text-slate-500 mt-0.5">Which model to use for Admin AI responses</p>
                   </div>
-                  <div className="w-56">
+                  <div className="w-full md:w-64 lg:w-72">
                     <Select
                       value={config.admin_ai.model_id || config.feature_assignments.find(f => f.feature_key === "admin_ai")?.assigned_model_id || ""}
                       onValueChange={(val) => setConfig(prev => ({
@@ -1139,8 +1139,8 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-white text-base">Require Confirmation</h4>
                     <p className="text-xs text-slate-500 mt-0.5">Always ask before executing destructive actions</p>
                   </div>
@@ -1153,7 +1153,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                   />
                 </div>
 
-                <h4 className="font-bold text-white text-sm mb-3">Allowed Permissions</h4>
+                <h4 className="font-bold text-white text-sm mt-6 mb-3">Allowed Permissions</h4>
                 <div className="space-y-3">
                   {[
                     { key: "manage_roles" as const, label: "Manage Roles", desc: "Create, delete, assign, and remove roles" },
@@ -1162,8 +1162,8 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                     { key: "manage_messages" as const, label: "Manage Messages", desc: "Delete, pin, and purge messages" },
                     { key: "manage_server" as const, label: "Manage Server", desc: "Change server name, icon, and settings" },
                   ].map(perm => (
-                    <div key={perm.key} className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
-                      <div>
+                    <div key={perm.key} className="flex items-center justify-between gap-3 p-3 sm:p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
+                      <div className="flex-1 min-w-0">
                         <span className="text-sm font-bold text-slate-200">{perm.label}</span>
                         <p className="text-[10px] text-slate-500">{perm.desc}</p>
                       </div>

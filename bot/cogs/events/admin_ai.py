@@ -114,16 +114,17 @@ class AdminAI(commands.Cog):
                     model_id = fa.get("assigned_model_id", "")
                     break
 
-        async with message.channel.typical(typing=True):
+        async with message.channel.typing():
             try:
                 from ai.manager import AIManager
                 manager = AIManager(data)
                 manager.load_from_guild_config(message.guild.id, data)
 
                 feature_key = "admin_ai"
+                user_msg = message.clean_content[:2000] if message.clean_content else "(no text content)"
                 messages = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"User {message.author.display_name} ({message.author.id}) says: {message.content}"}
+                    {"role": "user", "content": f"User {message.author.display_name} ({message.author.id}) says: {user_msg}"}
                 ]
 
                 response = await manager.execute_feature_typed(
