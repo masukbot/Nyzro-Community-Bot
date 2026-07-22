@@ -233,9 +233,25 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
   const [manualReason, setManualReason] = useState("");
   const [manualMessage, setManualMessage] = useState("");
   const [manualImageUrl, setManualImageUrl] = useState("");
+  const [manualVideoUrl, setManualVideoUrl] = useState("");
+  const [manualFormat, setManualFormat] = useState<"embed" | "normal">("embed");
+  const [manualColor, setManualColor] = useState("#5865F2");
+  const [manualTitle, setManualTitle] = useState("");
+  const [sendMode, setSendMode] = useState<"single" | "all">("single");
   const [sending, setSending] = useState(false);
-  const [broadcastMode, setBroadcastMode] = useState(false);
   const [broadcastSending, setBroadcastSending] = useState(false);
+
+  const buildPayload = (forAll: boolean) => ({
+    reason: manualReason || (forAll ? "Server-wide announcement" : "Staff issued warning"),
+    feature_key: manualFeatureKey,
+    message: manualMessage,
+    image_url: manualImageUrl,
+    video_url: manualVideoUrl,
+    format: manualFormat,
+    color: manualColor,
+    title: manualTitle || undefined,
+    ...(forAll ? { exclude_bots: true } : { user_id: manualUserId }),
+  });
 
   const handleSendManualWarning = async () => {
     if (!manualUserId) return;
@@ -244,21 +260,13 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       const res = await fetch(`/api/guilds/${guildId}/ai/dm-warning/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: manualUserId,
-          reason: manualReason || "Staff issued warning",
-          feature_key: manualFeatureKey,
-          message: manualMessage,
-          image_url: manualImageUrl,
-        }),
+        body: JSON.stringify(buildPayload(false)),
       });
       const data = await res.json();
       if (data.status === "success") {
         toast.success("DM warning sent successfully!");
-        setManualUserId("");
-        setManualReason("");
-        setManualMessage("");
-        setManualImageUrl("");
+        setManualUserId(""); setManualReason(""); setManualMessage("");
+        setManualImageUrl(""); setManualVideoUrl(""); setManualTitle("");
       } else {
         toast.error(data.detail || "Failed to send DM warning");
       }
@@ -275,20 +283,13 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       const res = await fetch(`/api/guilds/${guildId}/ai/dm-warning/broadcast`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reason: manualReason || "Server-wide announcement",
-          feature_key: manualFeatureKey,
-          message: manualMessage,
-          image_url: manualImageUrl,
-          exclude_bots: true,
-        }),
+        body: JSON.stringify(buildPayload(true)),
       });
       const data = await res.json();
       if (data.status === "success") {
         toast.success(`DM sent to ${data.sent || 0} members!`);
-        setManualReason("");
-        setManualMessage("");
-        setManualImageUrl("");
+        setManualReason(""); setManualMessage("");
+        setManualImageUrl(""); setManualVideoUrl(""); setManualTitle("");
       } else {
         toast.error(data.detail || "Failed to send broadcast");
       }
@@ -296,7 +297,6 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       toast.error("Failed to send broadcast");
     } finally {
       setBroadcastSending(false);
-      setBroadcastMode(false);
     }
   };
 
@@ -1503,16 +1503,36 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
             </div>
 
             {/* ── Manual Send ── */}
-            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-              <h4 className="text-lg font-bold text-white">Manual DM Warning</h4>
-              <p className="text-xs text-slate-400">Send a custom DM warning to any user manually.</p>
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-lg font-bold text-white">Manual DM Warning</h4>
+                  <p className="text-xs text-slate-400 mt-1">Send custom DM warnings — single user or broadcast to all members.</p>
+                </div>
+                <div className="flex bg-slate-900/60 border border-slate-800 rounded-xl p-1 gap-1">
+                  <button className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-colors ${sendMode === "single" ? "bg-red-500/20 text-red-400" : "text-slate-400 hover:text-white"}`}
+                    onClick={() => setSendMode("single")}
+                  >
+                    Per User
+                  </button>
+                  <button className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-colors ${sendMode === "all" ? "bg-orange-500/20 text-orange-400" : "text-slate-400 hover:text-white"}`}
+                    onClick={() => setSendMode("all")}
+                  >
+                    All Members
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">User ID</label>
-                  <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
-                    placeholder="Discord User ID" value={manualUserId}
-                    onChange={(e) => setManualUserId(e.target.value)}
-                  />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Format</label>
+                  <select className="w-full bg-slate-900/60 border border-slate-800 rounded-xl p-2 text-xs text-white mt-1"
+                    value={manualFormat}
+                    onChange={(e) => setManualFormat(e.target.value as "embed" | "normal")}
+                  >
+                    <option value="embed">🎨 Embed (Rich Design)</option>
+                    <option value="normal">💬 Normal Message</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Feature Preset</label>
@@ -1527,61 +1547,137 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                   </select>
                 </div>
               </div>
+
+              {sendMode === "single" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">User ID / Mention</label>
+                    <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                      placeholder="Discord User ID" value={manualUserId}
+                      onChange={(e) => setManualUserId(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {sendMode === "all" && (
+                <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl">
+                  <p className="text-xs text-orange-300 font-bold">⚠️ Broadcast Mode</p>
+                  <p className="text-xs text-slate-400 mt-1">This DM will be sent to every member in this server. Bots will be skipped.</p>
+                </div>
+              )}
+
+              {/* Embed Designer (shown only in embed mode) */}
+              {manualFormat === "embed" && (
+                <div className="bg-slate-900/40 border border-slate-700/50 rounded-2xl p-4 space-y-3">
+                  <h5 className="text-xs font-bold text-slate-300 uppercase tracking-wider">🎨 Embed Designer</h5>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Embed Title</label>
+                      <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                        placeholder="Staff Warning" value={manualTitle}
+                        onChange={(e) => setManualTitle(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Accent Color</label>
+                      <div className="flex gap-2 items-center mt-1">
+                        <input type="color" className="h-8 w-8 rounded cursor-pointer"
+                          value={manualColor}
+                          onChange={(e) => setManualColor(e.target.value)}
+                        />
+                        <Input className="bg-slate-900/60 border-slate-800 text-xs flex-1"
+                          value={manualColor}
+                          onChange={(e) => setManualColor(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Image URL</label>
+                      <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                        placeholder="https://example.com/warning.png" value={manualImageUrl}
+                        onChange={(e) => setManualImageUrl(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Video URL</label>
+                      <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                        placeholder="https://youtube.com/watch?v=..." value={manualVideoUrl}
+                        onChange={(e) => setManualVideoUrl(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  {/* Preview */}
+                  <div className="bg-[#0D1117] rounded-xl p-4 border border-slate-800">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Preview</p>
+                    <div className="bg-[#1A2332] rounded-lg border-l-4 p-3" style={{ borderLeftColor: manualColor }}>
+                      <p className="text-sm font-bold text-white">{manualTitle || "Staff Warning"}</p>
+                      <p className="text-xs text-slate-300 mt-1">{manualReason || "Reason for this warning"}</p>
+                      {manualImageUrl && <img src={manualImageUrl} className="mt-2 rounded-lg max-h-32 object-cover" alt="" />}
+                      {manualVideoUrl && <p className="text-xs text-blue-400 mt-1">🎥 {manualVideoUrl}</p>}
+                      <p className="text-[10px] text-slate-500 mt-2">User ID: 123456789012345678 | Strike 0/3</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Normal message fields (shown in normal mode) */}
+              {manualFormat === "normal" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Image URL</label>
+                      <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                        placeholder="https://example.com/image.png" value={manualImageUrl}
+                        onChange={(e) => setManualImageUrl(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Video URL</label>
+                      <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                        placeholder="https://youtube.com/watch?v=..." value={manualVideoUrl}
+                        onChange={(e) => setManualVideoUrl(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Reason</label>
                 <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
-                  placeholder="Reason for the warning" value={manualReason}
+                  placeholder="Reason for this warning" value={manualReason}
                   onChange={(e) => setManualReason(e.target.value)}
                 />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Custom Message (optional)</label>
                 <Textarea rows={3} className="bg-slate-900/60 border-slate-800 text-xs mt-1"
-                  placeholder="Leave blank to use the template for selected feature"
+                  placeholder="Leave blank to use template from selected feature preset"
                   value={manualMessage}
                   onChange={(e) => setManualMessage(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Image URL (optional)</label>
-                <Input className="bg-slate-900/60 border-slate-800 text-xs mt-1"
-                  placeholder="https://example.com/warning.png" value={manualImageUrl}
-                  onChange={(e) => setManualImageUrl(e.target.value)}
-                />
+
+              <div className="flex gap-3 pt-2">
+                {sendMode === "single" ? (
+                  <Button className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold flex-1"
+                    onClick={handleSendManualWarning}
+                    disabled={!manualUserId || sending}
+                  >
+                    {sending ? "Sending..." : "📩 Send DM Warning"}
+                  </Button>
+                ) : (
+                  <Button className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 font-bold flex-1"
+                    onClick={handleSendToAll}
+                    disabled={broadcastSending}
+                  >
+                    {broadcastSending ? "Broadcasting..." : "📢 Broadcast to All Members"}
+                  </Button>
+                )}
               </div>
-              <div className="flex gap-3">
-                <Button className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold flex-1"
-                  onClick={handleSendManualWarning}
-                  disabled={!manualUserId || sending}
-                >
-                  {sending ? "Sending..." : "Send to This User"}
-                </Button>
-                <Button className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 font-bold flex-1"
-                  onClick={() => setBroadcastMode(true)}
-                  disabled={broadcastSending}
-                >
-                  {broadcastSending ? "Broadcasting..." : "Send to All Members"}
-                </Button>
-              </div>
-              {broadcastMode && (
-                <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl space-y-3">
-                  <p className="text-sm text-orange-300 font-bold">⚠️ Broadcast to All Members</p>
-                  <p className="text-xs text-slate-400">This will send a DM to every member in this server. This may be rate-limited by Discord.</p>
-                  <div className="flex gap-2">
-                    <Button className="bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold"
-                      onClick={handleSendToAll}
-                      disabled={broadcastSending}
-                    >
-                      {broadcastSending ? "Sending..." : "Confirm Broadcast"}
-                    </Button>
-                    <Button variant="outline" className="text-slate-400"
-                      onClick={() => setBroadcastMode(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}

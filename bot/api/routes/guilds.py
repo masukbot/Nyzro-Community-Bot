@@ -1910,17 +1910,14 @@ async def test_ai_provider(payload: dict):
 
 
 @router.post("/{guild_id}/ai/dm-warning/send", summary="Send a manual DM warning to a user")
-async def send_manual_dm_warning(guild_id: int, payload: dict):
+async def send_manual_dm_warning(guild_id: int, payload: dict, bot: "nyzro" = Depends(get_bot)):
     user_id = payload.get("user_id")
     reason = payload.get("reason", "Staff issued warning")
     feature_key = payload.get("feature_key", "manual")
     message_text = payload.get("message", "")
     image_url = payload.get("image_url", "")
-    from cogs.events.ai import AIResponses
+    video_url = payload.get("video_url", "")
     try:
-        bot = getattr(router, "_bot", None)
-        if not bot:
-            raise HTTPException(status_code=500, detail="Bot not available")
         guild = bot.get_guild(guild_id)
         if not guild:
             raise HTTPException(status_code=404, detail="Guild not found")
@@ -1931,11 +1928,12 @@ async def send_manual_dm_warning(guild_id: int, payload: dict):
         cursor = await db.execute("SELECT config_json FROM ai_guild_configs WHERE guild_id = ?", (guild_id,))
         row = await cursor.fetchone()
         data = json.loads(row[0]) if row and row[0] else {}
-        handler = AIResponses(bot)
         dm_cfg = data.get("dm_warning", {})
         per_feature = dm_cfg.get("per_feature", {})
         feat_cfg = per_feature.get(feature_key, {})
-        fmt = feat_cfg.get("format") or dm_cfg.get("format", "embed")
+        fmt = payload.get("format") or feat_cfg.get("format") or dm_cfg.get("format", "embed")
+        embed_color = payload.get("color") or feat_cfg.get("color") or dm_cfg.get("color", "#5865F2")
+        embed_title = payload.get("title") or feat_cfg.get("title", "Staff Warning")
         template = message_text or feat_cfg.get("template") or dm_cfg.get("warning_template", "") or "Warning from {guild_name}: {reason}"
         msg = template.replace("{guild_name}", guild.name).replace("{reason}", reason[:500]).replace("{strikes}", "0").replace("{max_strikes}", "3")
         view = discord.ui.View()
@@ -1945,18 +1943,22 @@ async def send_manual_dm_warning(guild_id: int, payload: dict):
         if fmt == "embed":
             from cogs.events.ai import _build_dm_embed
             feat_cfg_embed = {
-                "title": feat_cfg.get("title", "Staff Warning"),
+                "title": embed_title,
                 "message": template,
-                "color": feat_cfg.get("color") or dm_cfg.get("color", "#5865F2"),
+                "color": embed_color,
                 "template": template,
             }
             embed = _build_dm_embed(user, guild, reason, feat_cfg_embed, 0, 3)
             if image_url:
                 embed.set_image(url=image_url)
+            if video_url:
+                embed.description = (embed.description or "") + f"\n\n🎥 [Watch Video]({video_url})"
             await user.send(embed=embed, view=view if view.children else None)
         else:
             if image_url:
                 msg += f"\n{image_url}"
+            if video_url:
+                msg += f"\n🎥 {video_url}"
             await user.send(msg, view=view if view.children else None)
         return {"status": "success", "message": f"DM warning sent to {user} ({user.id})"}
     except HTTPException:
@@ -1965,17 +1967,14 @@ async def send_manual_dm_warning(guild_id: int, payload: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{guild_id}/ai/dm-warning/broadcast", summary="Send DM warning to all guild members")
-async def broadcast_dm_warning(guild_id: int, payload: dict):
+async def broadcast_dm_warning(guild_id: int, payload: dict, bot: "nyzro" = Depends(get_bot)):
     reason = payload.get("reason", "Server-wide announcement")
     feature_key = payload.get("feature_key", "manual")
     message_text = payload.get("message", "")
     image_url = payload.get("image_url", "")
+    video_url = payload.get("video_url", "")
     exclude_bots = payload.get("exclude_bots", True)
-    from cogs.events.ai import AIResponses
     try:
-        bot = getattr(router, "_bot", None)
-        if not bot:
-            raise HTTPException(status_code=500, detail="Bot not available")
         guild = bot.get_guild(guild_id)
         if not guild:
             raise HTTPException(status_code=404, detail="Guild not found")
@@ -1983,11 +1982,12 @@ async def broadcast_dm_warning(guild_id: int, payload: dict):
         cursor = await db.execute("SELECT config_json FROM ai_guild_configs WHERE guild_id = ?", (guild_id,))
         row = await cursor.fetchone()
         data = json.loads(row[0]) if row and row[0] else {}
-        handler = AIResponses(bot)
         dm_cfg = data.get("dm_warning", {})
         per_feature = dm_cfg.get("per_feature", {})
         feat_cfg = per_feature.get(feature_key, {})
-        fmt = feat_cfg.get("format") or dm_cfg.get("format", "embed")
+        fmt = payload.get("format") or feat_cfg.get("format") or dm_cfg.get("format", "embed")
+        embed_color = payload.get("color") or feat_cfg.get("color") or dm_cfg.get("color", "#5865F2")
+        embed_title = payload.get("title") or feat_cfg.get("title", "Staff Warning")
         template = message_text or feat_cfg.get("template") or dm_cfg.get("warning_template", "") or "Warning from {guild_name}: {reason}"
         sent_count = 0
         failed_count = 0
@@ -2005,19 +2005,23 @@ async def broadcast_dm_warning(guild_id: int, payload: dict):
                 if fmt == "embed":
                     from cogs.events.ai import _build_dm_embed
                     feat_cfg_embed = {
-                        "title": feat_cfg.get("title", "Staff Warning"),
+                        "title": embed_title,
                         "message": template,
-                        "color": feat_cfg.get("color") or dm_cfg.get("color", "#5865F2"),
+                        "color": embed_color,
                         "template": template,
                     }
                     embed = _build_dm_embed(member, guild, reason, feat_cfg_embed, 0, 3)
                     if image_url:
                         embed.set_image(url=image_url)
+                    if video_url:
+                        embed.description = (embed.description or "") + f"\n\n🎥 [Watch Video]({video_url})"
                     await member.send(embed=embed, view=view if view.children else None)
                 else:
                     final_msg = msg_filled
                     if image_url:
                         final_msg += f"\n{image_url}"
+                    if video_url:
+                        final_msg += f"\n🎥 {video_url}"
                     await member.send(final_msg, view=view if view.children else None)
                 sent_count += 1
             except discord.Forbidden:
