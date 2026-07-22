@@ -24,13 +24,11 @@ import {
   Layers,
   MessageSquare,
   UserCheck,
-  ShieldAlert,
   Eye,
   Paperclip,
   Bell,
   Languages,
   Ticket,
-  FileCode,
   RefreshCcw,
   Zap,
   Lock,
@@ -106,12 +104,10 @@ const SUB_MODULES = [
   { id: "assignment", name: "Feature Mapping", icon: Layers },
   { id: "channels", name: "AI Chat Channels", icon: MessageSquare },
   { id: "personas", name: "AI Personas", icon: UserCheck },
-  { id: "moderation", name: "AI Moderation", icon: ShieldAlert },
   { id: "vision", name: "Vision & Attachments", icon: Eye },
   { id: "dm_warnings", name: "DM Warnings", icon: Bell },
   { id: "services", name: "Translation & Tickets", icon: Languages },
-  { id: "prompts", name: "Prompt Library", icon: FileCode },
-  { id: "failover", name: "Failover & Budget", icon: RefreshCcw },
+
   { id: "testing", name: "Testing Playground", icon: Terminal },
   { id: "security", name: "Security & Keys", icon: Lock },
 ];
@@ -1135,77 +1131,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
 
 
 
-        {/* 8. AI MODERATION CENTER */}
-        {activeTab === "moderation" && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5 text-primary" />
-                AI Moderation Center (13 Neural Detectors)
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">Configure automated context detection and action policies.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {config.moderation_detectors.map(det => (
-                <div key={det.id} className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-white text-base">{det.name}</h4>
-                    <Switch
-                      checked={det.enabled}
-                      onCheckedChange={() => setConfig(prev => ({
-                        ...prev,
-                        moderation_detectors: prev.moderation_detectors.map(item => item.id === det.id ? { ...item, enabled: !item.enabled } : item)
-                      }))}
-                    />
-                  </div>
-
-                  <p className="text-xs text-slate-400">{det.description}</p>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Sensitivity ({det.sensitivity}%)</label>
-                      <input
-                        type="range"
-                        min="50"
-                        max="100"
-                        value={det.sensitivity}
-                        onChange={(e) => setConfig(prev => ({
-                          ...prev,
-                          moderation_detectors: prev.moderation_detectors.map(item => item.id === det.id ? { ...item, sensitivity: parseInt(e.target.value) } : item)
-                        }))}
-                        className="w-full mt-2 accent-primary"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Enforced Action</label>
-                      <Select
-                        value={det.action}
-                        onValueChange={(val: any) => setConfig(prev => ({
-                          ...prev,
-                          moderation_detectors: prev.moderation_detectors.map(item => item.id === det.id ? { ...item, action: val } : item)
-                        }))}
-                        options={[
-                          { value: "delete", label: "Delete Message" },
-                          { value: "warn", label: "Warn User" },
-                          { value: "timeout", label: "Timeout User" },
-                          { value: "kick", label: "Kick User" },
-                          { value: "ban", label: "Ban User" },
-                          { value: "dm_warn", label: "Send DM Warning" },
-                          { value: "log_only", label: "Log Only" },
-                        ]}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 9. VISION & ATTACHMENT SCANNER */}
+        {/* 8. VISION & ATTACHMENT SCANNER */}
         {activeTab === "vision" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
@@ -1743,100 +1669,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
         )}
 
         {/* 12. PROMPT LIBRARY */}
-        {activeTab === "prompts" && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <FileCode className="h-5 w-5 text-primary" />
-                Prompt Management Library
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">Manage versioned prompt templates and binding assignments.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {config.prompts.map(pr => (
-                <div key={pr.id} className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-white text-base">{pr.title}</h4>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-black rounded-full">
-                        {pr.version}
-                      </span>
-                      <button
-                        onClick={() => setConfig(prev => ({
-                          ...prev,
-                          prompts: prev.prompts.filter(item => item.id !== pr.id)
-                        }))}
-                        className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
-                        title="Delete prompt"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <Textarea
-                    rows={3}
-                    value={pr.content}
-                    onChange={(e) => setConfig(prev => ({
-                      ...prev,
-                      prompts: prev.prompts.map(item => item.id === pr.id ? { ...item, content: e.target.value } : item)
-                    }))}
-                    className="bg-slate-900/60 border-slate-800 text-xs mt-1"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 14. FAILOVER & BUDGET */}
-        {activeTab === "failover" && (
-          <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6 max-w-3xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <RefreshCcw className="h-5 w-5 text-primary" />
-                Provider Failover & Budget Routing
-              </h3>
-              <Switch
-                checked={config.failover.enabled}
-                onCheckedChange={(val) => setConfig(prev => ({ ...prev, failover: { ...prev.failover, enabled: val } }))}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase">Daily Budget Cap ($ USD)</label>
-                <Input
-                  type="number"
-                  value={config.failover.budget_cap_daily}
-                  onChange={(e) => setConfig(prev => ({ ...prev, failover: { ...prev.failover, budget_cap_daily: parseFloat(e.target.value) || 0 } }))}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase">Monthly Budget Cap ($ USD)</label>
-                <Input
-                  type="number"
-                  value={config.failover.budget_cap_monthly}
-                  onChange={(e) => setConfig(prev => ({ ...prev, failover: { ...prev.failover, budget_cap_monthly: parseFloat(e.target.value) || 0 } }))}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
-              <span className="text-xs font-bold text-slate-300">Auto Fallback to Zero-Cost Provider on Budget Cap</span>
-              <Switch
-                checked={config.failover.auto_fallback_on_budget_exceeded}
-                onCheckedChange={(val) => setConfig(prev => ({ ...prev, failover: { ...prev.failover, auto_fallback_on_budget_exceeded: val } }))}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* 15. TESTING PLAYGROUND */}
+        {/* 12. TESTING PLAYGROUND */}
         {activeTab === "testing" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
