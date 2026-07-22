@@ -1332,7 +1332,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                             ...prev, dm_warning: {
                               ...prev.dm_warning, per_feature: {
                                 ...prev.dm_warning.per_feature,
-                                [key]: { ...prev.dm_warning.per_feature[key], format: e.target.value }
+                                [key]: { ...prev.dm_warning.per_feature[key], format: e.target.value as "embed" | "normal" }
                               }
                             }
                           }))}
