@@ -234,6 +234,8 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
   const [manualMessage, setManualMessage] = useState("");
   const [manualImageUrl, setManualImageUrl] = useState("");
   const [sending, setSending] = useState(false);
+  const [broadcastMode, setBroadcastMode] = useState(false);
+  const [broadcastSending, setBroadcastSending] = useState(false);
 
   const handleSendManualWarning = async () => {
     if (!manualUserId) return;
@@ -264,6 +266,37 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       toast.error("Failed to send DM warning");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSendToAll = async () => {
+    setBroadcastSending(true);
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/ai/dm-warning/broadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: manualReason || "Server-wide announcement",
+          feature_key: manualFeatureKey,
+          message: manualMessage,
+          image_url: manualImageUrl,
+          exclude_bots: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast.success(`DM sent to ${data.sent || 0} members!`);
+        setManualReason("");
+        setManualMessage("");
+        setManualImageUrl("");
+      } else {
+        toast.error(data.detail || "Failed to send broadcast");
+      }
+    } catch (err) {
+      toast.error("Failed to send broadcast");
+    } finally {
+      setBroadcastSending(false);
+      setBroadcastMode(false);
     }
   };
 
@@ -1516,12 +1549,39 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                   onChange={(e) => setManualImageUrl(e.target.value)}
                 />
               </div>
-              <Button className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold"
-                onClick={handleSendManualWarning}
-                disabled={!manualUserId || sending}
-              >
-                {sending ? "Sending..." : "Send DM Warning"}
-              </Button>
+              <div className="flex gap-3">
+                <Button className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-bold flex-1"
+                  onClick={handleSendManualWarning}
+                  disabled={!manualUserId || sending}
+                >
+                  {sending ? "Sending..." : "Send to This User"}
+                </Button>
+                <Button className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 font-bold flex-1"
+                  onClick={() => setBroadcastMode(true)}
+                  disabled={broadcastSending}
+                >
+                  {broadcastSending ? "Broadcasting..." : "Send to All Members"}
+                </Button>
+              </div>
+              {broadcastMode && (
+                <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl space-y-3">
+                  <p className="text-sm text-orange-300 font-bold">⚠️ Broadcast to All Members</p>
+                  <p className="text-xs text-slate-400">This will send a DM to every member in this server. This may be rate-limited by Discord.</p>
+                  <div className="flex gap-2">
+                    <Button className="bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold"
+                      onClick={handleSendToAll}
+                      disabled={broadcastSending}
+                    >
+                      {broadcastSending ? "Sending..." : "Confirm Broadcast"}
+                    </Button>
+                    <Button variant="outline" className="text-slate-400"
+                      onClick={() => setBroadcastMode(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

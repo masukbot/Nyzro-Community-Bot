@@ -1960,6 +1960,69 @@ async def send_manual_dm_warning(guild_id: int, payload: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/{guild_id}/ai/dm-warning/broadcast", summary="Send DM warning to all guild members")
+async def broadcast_dm_warning(guild_id: int, payload: dict):
+    reason = payload.get("reason", "Server-wide announcement")
+    feature_key = payload.get("feature_key", "manual")
+    message_text = payload.get("message", "")
+    image_url = payload.get("image_url", "")
+    exclude_bots = payload.get("exclude_bots", True)
+    from cogs.events.ai import AIResponses
+    try:
+        bot = getattr(router, "_bot", None)
+        if not bot:
+            raise HTTPException(status_code=500, detail="Bot not available")
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            raise HTTPException(status_code=404, detail="Guild not found")
+        db = await db_manager.get_connection('db/ai.db')
+        cursor = await db.execute("SELECT config_json FROM ai_guild_configs WHERE guild_id = ?", (guild_id,))
+        row = await cursor.fetchone()
+        data = json.loads(row[0]) if row and row[0] else {}
+        handler = AIResponses(bot)
+        dm_cfg = data.get("dm_warning", {})
+        per_feature = dm_cfg.get("per_feature", {})
+        feat_cfg = per_feature.get(feature_key, {})
+        fmt = feat_cfg.get("format") or dm_cfg.get("format", "embed")
+        template = message_text or feat_cfg.get("template") or dm_cfg.get("warning_template", "") or "Warning from {guild_name}: {reason}"
+        sent_count = 0
+        failed_count = 0
+        async for member in guild.fetch_members(limit=None):
+            if exclude_bots and member.bot:
+                continue
+            if member == guild.me:
+                continue
+            try:
+                msg_filled = template.replace("{guild_name}", guild.name).replace("{reason}", reason[:500]).replace("{strikes}", "0").replace("{max_strikes}", "3")
+                view = discord.ui.View()
+                if dm_cfg.get("appeal", {}).get("enabled", False):
+                    from cogs.events.ai import AppealButton
+                    view.add_item(AppealButton(bot, guild_id, member.id, dm_cfg))
+                if fmt == "embed":
+                    from cogs.events.ai import _build_dm_embed, _get_dm_template
+                    tpl = {"title": feat_cfg.get("title", "Staff Warning"), "message": template, "color": feat_cfg.get("color") or dm_cfg.get("color", "#5865F2")}
+                    embed = _build_dm_embed(member, guild, reason, tpl, 0, 3)
+                    if image_url:
+                        embed.set_image(url=image_url)
+                    await member.send(embed=embed, view=view if view.children else None)
+                else:
+                    final_msg = msg_filled
+                    if image_url:
+                        final_msg += f"\n{image_url}"
+                    await member.send(final_msg, view=view if view.children else None)
+                sent_count += 1
+            except discord.Forbidden:
+                failed_count += 1
+            except Exception:
+                failed_count += 1
+            if sent_count % 10 == 0:
+                await asyncio.sleep(1)
+        return {"status": "success", "sent": sent_count, "failed": failed_count, "message": f"DM sent to {sent_count} members ({failed_count} failed)"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/{guild_id}/ai/playground", summary="Execute live AI playground request")
 async def run_ai_playground(guild_id: int, payload: dict):
     prompt = payload.get("prompt", "").strip()
