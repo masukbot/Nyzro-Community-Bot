@@ -624,7 +624,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Default Model</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Model</label>
                         <Input
                           value={p.default_model}
                           onChange={(e) => setConfig(prev => ({
