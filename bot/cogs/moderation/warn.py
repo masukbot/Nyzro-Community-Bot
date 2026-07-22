@@ -94,7 +94,7 @@ class Warn(commands.Cog):
         except Exception as e:
             print(f"Error during database setup: {e}")
 
-    @commands.hybrid_command(
+    @commands.command(
         name="warn",
         help="Warn a user in the server",
         usage="warn <user> [reason]",
@@ -156,7 +156,7 @@ class Warn(commands.Cog):
             await ctx.send(f"An error occurred: {str(e)}")
             print(f"Error during warn command: {e}")
 
-    @commands.hybrid_command(
+    @commands.command(
         name="clearwarns",
         help="Clear all warnings for a user",
         aliases=["clearwarn" , "clearwarnings"],

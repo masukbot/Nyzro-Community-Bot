@@ -127,7 +127,7 @@ class Moderation(commands.Cog):
 
 
 
-  @commands.hybrid_command(name="unlockall",
+  @commands.command(name="unlockall",
                     help="Unlocks all channels in the Guild.",
                     usage="unlockall")
   @blacklist_check()
@@ -212,7 +212,7 @@ class Moderation(commands.Cog):
 
 
 
-  @commands.hybrid_command(name="lockall",
+  @commands.command(name="lockall",
                     help="locks all the channels in Guild.",
                     usage="lockall")
   @blacklist_check()
@@ -295,7 +295,7 @@ class Moderation(commands.Cog):
           await ctx.send(embed=denied, mention_author=False)
           
 
-  @commands.hybrid_command(name="give",
+  @commands.command(name="give",
                     help="Gives the mentioned user a role.",
                     usage="give <user> <role>",
                     aliases=["addrole"])
@@ -365,7 +365,7 @@ class Moderation(commands.Cog):
 
 
 
-  @commands.hybrid_command(name="hideall", help="Hides all the channels .",
+  @commands.command(name="hideall", help="Hides all the channels .",
                     usage="hideall")
   @blacklist_check()
   @ignore_check()
@@ -443,7 +443,7 @@ class Moderation(commands.Cog):
                      icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
           await ctx.send(embed=denied, mention_author=False)
 
-  @commands.hybrid_command(name="unhideall", help="Unhides all the channels in the server.",
+  @commands.command(name="unhideall", help="Unhides all the channels in the server.",
                     usage="unhideall")
   @blacklist_check()
   @ignore_check()
@@ -523,7 +523,7 @@ class Moderation(commands.Cog):
 
 
 
-  @commands.hybrid_command(
+  @commands.command(
         name="prefix",
         aliases=["setprefix", "prefixset"],
         help="Allows you to change the prefix of the bot for this server"
@@ -561,7 +561,7 @@ class Moderation(commands.Cog):
         
 
 
-  @commands.hybrid_command(name="clone", help="Clones a channel.")
+  @commands.command(name="clone", help="Clones a channel.")
   @blacklist_check()
   @ignore_check()
   @commands.has_permissions(manage_channels=True)
@@ -605,7 +605,7 @@ class Moderation(commands.Cog):
         await ctx.send(embed=error)
         
 
-  @commands.hybrid_command(name="nick",
+  @commands.command(name="nick",
                            aliases=['setnick'],
                            help="To change someone's nickname.",
                            usage="nick [member]")
@@ -681,7 +681,7 @@ class Moderation(commands.Cog):
         await ctx.send(embed=error)
         
 
-  @commands.hybrid_command(name="nuke", help="Nukes a channel", usage="nuke")
+  @commands.command(name="nuke", help="Nukes a channel", usage="nuke")
   @blacklist_check()
   @ignore_check()
   @top_check()
@@ -745,7 +745,7 @@ class Moderation(commands.Cog):
 
 
 
-  @commands.hybrid_command(name="slowmode",
+  @commands.command(name="slowmode",
                            help="Changes the slowmode",
                            usage="slowmode [seconds]",
                            aliases=["slow"])
@@ -775,7 +775,7 @@ class Moderation(commands.Cog):
       await ctx.send(embed=embed)
       
 
-  @commands.hybrid_command(name="unslowmode",
+  @commands.command(name="unslowmode",
                            help="Disables slowmode",
                            usage="unslowmode",
                            aliases=["unslow"])
@@ -977,7 +977,7 @@ class Moderation(commands.Cog):
   
   
       
-  @commands.hybrid_command(name="unbanall",
+  @commands.command(name="unbanall",
                            help="Unbans Everyone In The Guild!",
                            aliases=['massunban'],
                            usage="Unbanall",
@@ -1042,7 +1042,7 @@ class Moderation(commands.Cog):
     view.add_item(button1)
     await ctx.reply(embed=embed, view=view, mention_author=False)
   
-  @commands.hybrid_command(name="audit",
+  @commands.command(name="audit",
                            help="See recents audit log action in the server .")
   @blacklist_check()
   @ignore_check()
