@@ -1753,7 +1753,7 @@ Support server: https://discord.gg/codexdev"""
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """Auto AI Chat listener for configured channels"""
+        """Auto AI Chat listener for configured channels — uses AIManager orchestration."""
         if message.author.bot or not message.guild:
             return
 
@@ -1762,6 +1762,8 @@ Support server: https://discord.gg/codexdev"""
 
         try:
             from api.db_manager import db_manager
+            from ai.manager import AIManager
+
             db = await db_manager.get_connection('db/ai.db')
             cursor = await db.execute("SELECT ai_enabled, config_json FROM ai_guild_configs WHERE guild_id = ? OR guild_id = ?", (guild_id, str(guild_id)))
             row = await cursor.fetchone()
@@ -1769,12 +1771,15 @@ Support server: https://discord.gg/codexdev"""
                 return
 
             data = json.loads(row[1])
+            if not data.get("ai_enabled", row[0]):
+                return
+
             chat_channels = data.get("chat_channels", [])
 
             matching_ch = next((
                 c for c in chat_channels
                 if (str(c.get("channel_id")).strip() == channel_id_str or c.get("channel_id") == message.channel.id)
-                and (c.get("enabled") in [True, 1, "true", "True", None])
+                and c.get("enabled") in (True, 1, "true", "True")
             ), None)
 
             if not matching_ch:
@@ -1797,81 +1802,47 @@ Support server: https://discord.gg/codexdev"""
                 return
 
             system_prompt = matching_ch.get("system_prompt") or "You are Nyzro AI assistant. Help community members politely and concisely."
-            
-            # Resolve AI Provider bound to Chat AI feature or channel override
-            providers = data.get("providers") or data.get("provider_profiles", [])
-            feature_assignments = data.get("feature_assignments", [])
-            
-            chat_feature = next((f for f in feature_assignments if f.get("feature_key") == "chat_ai"), None)
-            target_provider_id = matching_ch.get("model_id")
-            if not target_provider_id or target_provider_id == "default":
-                target_provider_id = chat_feature.get("assigned_model_id") if chat_feature else ""
 
-            provider = next((p for p in providers if str(p.get("id")) == str(target_provider_id)), None)
-            if not provider and len(providers) > 0:
-                provider = providers[0]
+            # Build AIManager with guild config
+            manager = AIManager()
+            manager.load_from_guild_config(guild_id, data)
 
-            api_key = (provider.get("api_key") if provider else None) or os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
-            endpoint = (provider.get("endpoint") if provider else "") or ""
-            model_name = (provider.get("default_model") if provider else None) or "llama-3.1-8b-instant"
-            provider_type = (provider.get("provider_type") if provider else "groq") or "groq"
+            # Determine model override from channel config
+            model_override = matching_ch.get("model_id")
+            if model_override == "default":
+                model_override = None
 
-            response_text = ""
+            # Build message list
+            messages = [{"role": "user", "content": prompt}]
+
             async with message.channel.typing():
-                if provider_type == "groq" or "groq" in endpoint.lower() or (api_key and api_key.startswith("gsk_")):
-                    async with aiohttp.ClientSession() as session:
-                        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                        payload = {
-                            "model": model_name,
-                            "messages": [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": prompt}
-                            ],
-                            "temperature": float(matching_ch.get("temperature") or 0.7),
-                            "max_tokens": 800
-                        }
-                        target_url = "https://api.groq.com/openai/v1/chat/completions"
-                        if endpoint and "groq.com" not in endpoint:
-                            target_url = endpoint if endpoint.endswith("/chat/completions") else f"{endpoint.rstrip('/')}/chat/completions"
-                        async with session.post(target_url, json=payload, headers=headers, timeout=15) as resp:
-                            if resp.status == 200:
-                                res_json = await resp.json()
-                                response_text = res_json['choices'][0]['message']['content'].strip()
-                            else:
-                                logger.error(f"Groq API returned HTTP {resp.status}: {await resp.text()}")
+                try:
+                    response = await manager.execute_feature(
+                        "chat_ai",
+                        messages,
+                        system_prompt=system_prompt,
+                        model_override=model_override,
+                        temperature=matching_ch.get("temperature", 0.7),
+                        max_tokens=800,
+                    )
+                    await message.reply(response.content[:2000], mention_author=False)
+                except ValueError as ve:
+                    err_msg = str(ve)
+                    logger.warning(f"AI chat config error for guild {guild_id}: {err_msg}")
+                    if "disabled" in err_msg:
+                        await message.reply("⚠️ Chat AI feature is disabled. Enable it in the Feature Mapping tab.", mention_author=False)
+                    elif "No model" in err_msg:
+                        await message.reply("⚠️ No AI model assigned to Chat AI. Configure Feature Mapping in the dashboard.", mention_author=False)
+                    elif "Provider" in err_msg and "not configured" in err_msg:
+                        await message.reply("⚠️ The AI provider for Chat AI is not configured. Add a provider in the dashboard.", mention_author=False)
+                    else:
+                        await message.reply(f"⚠️ AI configuration error: {err_msg[:200]}", mention_author=False)
+                except Exception as e:
+                    logger.error(f"AI chat execution error for guild {guild_id}: {e}")
+                    await message.reply(f"⚠️ AI response failed: {str(e)[:200]}", mention_author=False)
+                finally:
+                    await manager.close()
 
-                elif provider_type == "gemini":
-                    if GEMINI_AVAILABLE and api_key:
-                        genai.configure(api_key=api_key)
-                        gem_model = genai.GenerativeModel(model_name if "gemini" in model_name.lower() else "gemini-1.5-flash")
-                        res = gem_model.generate_content(f"System Prompt: {system_prompt}\nUser Message: {prompt}")
-                        response_text = res.text
-
-                if not response_text and api_key:
-                    # OpenAI / OpenRouter / Custom endpoint fallback
-                    async with aiohttp.ClientSession() as session:
-                        headers = {"Content-Type": "application/json"}
-                        if api_key:
-                            headers["Authorization"] = f"Bearer {api_key}"
-                        payload = {
-                            "model": model_name,
-                            "messages": [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": prompt}
-                            ]
-                        }
-                        base_ep = endpoint or "https://api.openai.com/v1"
-                        target_url = base_ep if base_ep.endswith("/chat/completions") else f"{base_ep.rstrip('/')}/chat/completions"
-                        async with session.post(target_url, json=payload, headers=headers, timeout=15) as resp:
-                            if resp.status == 200:
-                                res_json = await resp.json()
-                                response_text = res_json['choices'][0]['message']['content'].strip()
-
-                if not response_text:
-                    response_text = await self._get_groq_response(prompt, [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
-
-                if response_text:
-                    await message.reply(response_text, mention_author=False)
         except Exception as e:
             logger.error(f"Error in AI auto chat on_message: {e}")
 

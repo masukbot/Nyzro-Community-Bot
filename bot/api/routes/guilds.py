@@ -36,6 +36,7 @@ from api.schemas import (
     WebhookConfig, WebhookUpdate, WebhookEvent,
     AIConfigSchema, AIConfigUpdateSchema, AIChatChannelSchema
 )
+from ai.providers.base import AIRequest
 from typing import TYPE_CHECKING, List, Optional
 import math
 import aiosqlite
@@ -1876,12 +1877,10 @@ async def update_ai_config(guild_id: int, data: AIConfigUpdateSchema):
 @router.post("/ai/providers/test", summary="Test AI provider connection with live API credentials")
 async def test_ai_provider(payload: dict):
     profile = payload.get("profile", {})
-    provider_type = profile.get("provider_type", "gemini")
-    api_key = profile.get("api_key") or os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY")
+    provider_type = profile.get("provider_type", "openai")
+    api_key = profile.get("api_key") or ""
     endpoint = (profile.get("endpoint") or "").strip()
-    model_name = profile.get("default_model") or "llama-3.1-8b-instant"
-
-    start_time = time.time()
+    model_name = profile.get("default_model") or "gpt-4o-mini"
 
     if not api_key and provider_type not in ["ollama", "lm_studio"]:
         return {
@@ -1891,66 +1890,29 @@ async def test_ai_provider(payload: dict):
         }
 
     try:
-        if provider_type == "groq" or "groq" in endpoint.lower():
-            async with aiohttp.ClientSession() as session:
-                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                body = {
-                    "model": model_name,
-                    "messages": [{"role": "user", "content": "Ping test."}],
-                    "max_tokens": 10
-                }
-                target_url = "https://api.groq.com/openai/v1/chat/completions"
-                if endpoint and "groq.com" not in endpoint:
-                    target_url = endpoint if endpoint.endswith("/chat/completions") else f"{endpoint.rstrip('/')}/chat/completions"
-                    
-                async with session.post(target_url, json=body, headers=headers, timeout=10) as resp:
-                    latency = int((time.time() - start_time) * 1000)
-                    if resp.status == 200:
-                        return {"status": "ok", "latency_ms": latency, "message": f"Groq ({model_name}) connected successfully!"}
-                    err_txt = await resp.text()
-                    return {"status": "error", "latency_ms": latency, "error": f"Groq HTTP {resp.status}: {err_txt[:150]}"}
-
-        elif provider_type == "gemini":
-            if GEMINI_AVAILABLE and api_key:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name if "gemini" in model_name.lower() else "gemini-1.5-flash")
-                res = model.generate_content("Ping test.")
-                latency = int((time.time() - start_time) * 1000)
-                return {"status": "ok", "latency_ms": latency, "message": f"Google Gemini ({model_name}) connected successfully!"}
-
-        elif provider_type in ["openai", "openrouter", "deepseek", "together", "mistral", "ollama", "lm_studio", "custom"]:
-            async with aiohttp.ClientSession() as session:
-                headers = {"Content-Type": "application/json"}
-                if api_key:
-                    headers["Authorization"] = f"Bearer {api_key}"
-                body = {
-                    "model": model_name,
-                    "messages": [{"role": "user", "content": "Ping test."}],
-                    "max_tokens": 10
-                }
-                base_ep = endpoint or "https://api.openai.com/v1"
-                target_url = base_ep if base_ep.endswith("/chat/completions") else f"{base_ep.rstrip('/')}/chat/completions"
-                async with session.post(target_url, json=body, headers=headers, timeout=10) as resp:
-                    latency = int((time.time() - start_time) * 1000)
-                    if resp.status == 200:
-                        return {"status": "ok", "latency_ms": latency, "message": f"Provider ({provider_type}) connected successfully!"}
-                    err_txt = await resp.text()
-                    return {"status": "error", "latency_ms": latency, "error": f"HTTP {resp.status}: {err_txt[:150]}"}
-
-        # Fallback HTTP ping test for custom endpoints
-        async with aiohttp.ClientSession() as session:
-            async with session.get(endpoint or "https://generativelanguage.googleapis.com", timeout=5) as resp:
-                latency = int((time.time() - start_time) * 1000)
-                return {"status": "ok", "latency_ms": latency, "message": "Endpoint reachable."}
+        from ai.providers.builtins import get_provider_class
+        cls = get_provider_class(provider_type)
+        config = {
+            "id": "test",
+            "name": profile.get("name", "Test Provider"),
+            "provider_type": provider_type,
+            "api_key": api_key,
+            "endpoint": endpoint,
+            "default_model": model_name,
+            "timeout": 10,
+        }
+        provider = cls(config)
+        result = await provider.test_connection()
+        await provider.close()
+        return result
     except Exception as e:
-        latency = int((time.time() - start_time) * 1000)
-        return {"status": "error", "latency_ms": latency, "error": str(e)}
+        return {"status": "error", "error": str(e)}
 
 
 @router.post("/{guild_id}/ai/playground", summary="Execute live AI playground request")
 async def run_ai_playground(guild_id: int, payload: dict):
     prompt = payload.get("prompt", "").strip()
-    model_name = payload.get("modelId", "gemini-1.5-flash")
+    model_id = payload.get("modelId", "")
     image_url = payload.get("imageUrl")
     
     if not prompt:
@@ -1961,97 +1923,63 @@ async def run_ai_playground(guild_id: int, payload: dict):
     row = await cursor.fetchone()
     
     config_json = json.loads(row[0]) if row and row[0] else {}
-    providers = config_json.get("provider_profiles", [])
+    providers = config_json.get("providers") or config_json.get("provider_profiles", [])
+    models = config_json.get("models") or config_json.get("model_definitions", [])
     
     start_time = time.time()
     
-    api_key = None
-    for p in providers:
-        if p.get("api_key"):
-            api_key = p.get("api_key")
-            break
-            
-    if not api_key:
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY")
-
-    if not api_key:
+    # Find the target model and its provider
+    target_model = next((m for m in models if m.get("id") == model_id), None)
+    if not target_model:
+        target_model = next(iter(models), None)
+    
+    provider_id = target_model.get("provider_id") if target_model else None
+    provider_cfg = next((p for p in providers if str(p.get("id")) == str(provider_id)), None) if provider_id else next(iter(providers), None)
+    
+    if not provider_cfg:
         return {
             "status": "error",
             "latency_ms": 0,
             "input_tokens": 0,
             "output_tokens": 0,
-            "response_text": "Error: No AI Provider API keys configured for this server. Please go to the 'AI Providers' tab and add your API key first.",
-            "debug_logs": ["Failed: Missing API Key in database configuration."]
+            "response_text": "Error: No AI Provider configured. Add a provider in the AI Providers tab first.",
+            "debug_logs": ["Failed: No provider found in configuration."]
         }
 
     try:
-        if GEMINI_AVAILABLE and ("gemini" in model_name.lower() or os.getenv("GEMINI_API_KEY")):
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            
-            if image_url:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(image_url) as resp:
-                        if resp.status == 200:
-                            img_bytes = await resp.read()
-                            image = Image.open(io.BytesIO(img_bytes))
-                            res = model.generate_content([prompt, image])
-                            latency = int((time.time() - start_time) * 1000)
-                            return {
-                                "status": "success",
-                                "latency_ms": latency,
-                                "input_tokens": len(prompt) // 4,
-                                "output_tokens": len(res.text) // 4,
-                                "response_text": res.text,
-                                "debug_logs": [f"[{latency}ms] Multimodal Gemini Vision processed image successfully."]
-                            }
-
-            res = model.generate_content(prompt)
-            latency = int((time.time() - start_time) * 1000)
-            return {
-                "status": "success",
-                "latency_ms": latency,
-                "input_tokens": len(prompt) // 4,
-                "output_tokens": len(res.text) // 4,
-                "response_text": res.text,
-                "debug_logs": [f"[{latency}ms] Live Gemini API execution complete."]
-            }
+        from ai.providers.builtins import get_provider_class
+        cls = get_provider_class(provider_cfg.get("provider_type", "custom"))
+        provider = cls(provider_cfg)
         
-        async with aiohttp.ClientSession() as session:
-            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-            body = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 1000
-            }
-            async with session.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers, timeout=15) as resp:
-                latency = int((time.time() - start_time) * 1000)
-                if resp.status == 200:
-                    data = await resp.json()
-                    answer = data["choices"][0]["message"]["content"]
-                    usage = data.get("usage", {})
-                    return {
-                        "status": "success",
-                        "latency_ms": latency,
-                        "input_tokens": usage.get("prompt_tokens", len(prompt) // 4),
-                        "output_tokens": usage.get("completion_tokens", len(answer) // 4),
-                        "response_text": answer,
-                        "debug_logs": [f"[{latency}ms] Live Groq API execution complete."]
-                    }
-                err_text = await resp.text()
-                return {
-                    "status": "error",
-                    "latency_ms": latency,
-                    "response_text": f"API Execution Error ({resp.status}): {err_text}",
-                    "debug_logs": [f"[{latency}ms] Failed to execute API call."]
-                }
+        req = AIRequest(
+            messages=[{"role": "user", "content": prompt}],
+            model=target_model.get("model_name", provider_cfg.get("default_model", "")) if target_model else provider_cfg.get("default_model", "gpt-4o-mini"),
+            max_tokens=1000,
+            temperature=0.7,
+        )
+        
+        response = await provider.chat(req)
+        await provider.close()
+        
+        latency = int((time.time() - start_time) * 1000)
+        return {
+            "status": "success",
+            "latency_ms": latency,
+            "input_tokens": response.usage.get("prompt_tokens", 0),
+            "output_tokens": response.usage.get("completion_tokens", 0),
+            "estimated_cost": response.cost,
+            "response_text": response.content,
+            "debug_logs": [f"[{latency}ms] Live execution via {response.provider} ({response.model}) complete."]
+        }
     except Exception as e:
         latency = int((time.time() - start_time) * 1000)
         return {
             "status": "error",
             "latency_ms": latency,
-            "response_text": f"Execution Exception: {str(e)}",
-            "debug_logs": [f"[{latency}ms] Error: {str(e)}"]
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "response_text": f"Execution Error: {str(e)}",
+            "debug_logs": [f"[{latency}ms] Error: {str(e)[:200]}"]
         }
 
 

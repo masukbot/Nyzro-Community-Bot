@@ -24,14 +24,12 @@ import {
   Layers,
   MessageSquare,
   UserCheck,
-  Brain,
   ShieldAlert,
   Eye,
   Paperclip,
   Bell,
   Languages,
   Ticket,
-  Workflow,
   FileCode,
   RefreshCcw,
   Zap,
@@ -52,7 +50,6 @@ import {
   Terminal,
   ChevronRight,
   ChevronLeft,
-  Shield,
   KeyRound,
   FileText
 } from "lucide-react";
@@ -72,7 +69,6 @@ import {
   AIChatChannelConfig,
   AIPersonaConfig,
   AIModerationDetector,
-  AIAutomationWorkflow,
   AIPromptItem,
   DiscordChannel
 } from "@/types/api";
@@ -114,7 +110,6 @@ const SUB_MODULES = [
   { id: "vision", name: "Vision & Attachments", icon: Eye },
   { id: "dm_warnings", name: "DM Warnings", icon: Bell },
   { id: "services", name: "Translation & Tickets", icon: Languages },
-  { id: "automation", name: "Automation Builder", icon: Workflow },
   { id: "prompts", name: "Prompt Library", icon: FileCode },
   { id: "failover", name: "Failover & Budget", icon: RefreshCcw },
   { id: "testing", name: "Testing Playground", icon: Terminal },
@@ -327,6 +322,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
   const handleCreateProvider = () => {
     const template = BUILTIN_PROVIDERS_LIST.find(p => p.key === newProviderType);
     const newId = `prov_${Date.now()}`;
+    const modelId = `model_${Date.now()}`;
     const newProf: AIProviderProfile = {
       id: newId,
       name: newProviderName || (template ? template.name : "Custom AI"),
@@ -344,10 +340,35 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       status: "untested",
     };
 
-    setConfig(prev => ({ ...prev, providers: [...prev.providers, newProf] }));
+    const newModel = {
+      id: modelId,
+      model_name: newProf.default_model || "default-model",
+      provider_id: newId,
+      description: `${newProf.name} default model`,
+      context_window: 128000,
+      max_output_tokens: 4096,
+      temperature: 0.7,
+      top_p: 1.0,
+      frequency_penalty: 0.0,
+      presence_penalty: 0.0,
+      supports_vision: false,
+      supports_image_gen: false,
+      supports_audio: false,
+      supports_streaming: true,
+      input_cost_per_1m: 0.0,
+      output_cost_per_1m: 0.0,
+      speed_rating: "fast" as const,
+      recommended_use_cases: [],
+    };
+
+    setConfig(prev => ({
+      ...prev,
+      providers: [...prev.providers, newProf],
+      models: [...prev.models, newModel],
+    }));
     setShowAddProviderModal(false);
     setNewProviderKey("");
-    toast.success(`Provider profile '${newProf.name}' created!`);
+    toast.success(`Provider profile '${newProf.name}' created with default model!`);
   };
 
   // Confirmation Modal State
@@ -742,33 +763,39 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
 
                     <div className="flex flex-col sm:flex-row items-center gap-4">
                       <div className="w-full sm:w-56">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Primary AI Provider</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Primary AI Model</label>
                         <Select
                           value={feat.assigned_model_id}
                           onValueChange={(val) => setConfig(prev => ({
                             ...prev,
                             feature_assignments: prev.feature_assignments.map(f => f.feature_key === feat.feature_key ? { ...f, assigned_model_id: val } : f)
                           }))}
-                          options={config.providers.length > 0 ? [
+                          options={config.models.length > 0 ? [
                             { value: "", label: "-- Unassigned --" },
-                            ...config.providers.map(p => ({ value: p.id, label: `${p.name}` }))
-                          ] : [{ value: "", label: "No Providers Configured" }]}
+                            ...config.models.map(m => {
+                              const prov = config.providers.find(p => p.id === m.provider_id);
+                              return { value: m.id, label: `${m.model_name}${prov ? ` (${prov.name})` : ""}` };
+                            })
+                          ] : [{ value: "", label: "No Models Available" }]}
                           className="mt-1"
                         />
                       </div>
 
                       <div className="w-full sm:w-56">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Fallback Provider</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Fallback Model</label>
                         <Select
                           value={feat.fallback_model_id}
                           onValueChange={(val) => setConfig(prev => ({
                             ...prev,
                             feature_assignments: prev.feature_assignments.map(f => f.feature_key === feat.feature_key ? { ...f, fallback_model_id: val } : f)
                           }))}
-                          options={config.providers.length > 0 ? [
+                          options={config.models.length > 0 ? [
                             { value: "", label: "-- Unassigned --" },
-                            ...config.providers.map(p => ({ value: p.id, label: `${p.name}` }))
-                          ] : [{ value: "", label: "No Providers Configured" }]}
+                            ...config.models.map(m => {
+                              const prov = config.providers.find(p => p.id === m.provider_id);
+                              return { value: m.id, label: `${m.model_name}${prov ? ` (${prov.name})` : ""}` };
+                            })
+                          ] : [{ value: "", label: "No Models Available" }]}
                           className="mt-1"
                         />
                       </div>
@@ -894,7 +921,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Assigned Model Override</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Model Override</label>
                         <Select
                           value={ch.model_id || "default"}
                           onValueChange={(val) => {
@@ -903,8 +930,11 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                             setConfig(prev => ({ ...prev, chat_channels: updated }));
                           }}
                           options={[
-                            { value: "default", label: "Inherit Chat AI Provider (Feature Mapping)" },
-                            ...config.providers.map(p => ({ value: p.id, label: `${p.name} (${p.default_model || p.provider_type})` }))
+                            { value: "default", label: "Inherit from Feature Mapping" },
+                            ...config.models.map(m => {
+                              const prov = config.providers.find(p => p.id === m.provider_id);
+                              return { value: m.id, label: `${m.model_name}${prov ? ` (${prov.name})` : ""}` };
+                            })
                           ]}
                           className="mt-1"
                         />
@@ -1246,44 +1276,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
           </div>
         )}
 
-        {/* 12. AUTOMATION BUILDER */}
-        {activeTab === "automation" && (
-          <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6">
-            <div>
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Workflow className="h-5 w-5 text-primary" />
-                Visual AI Automation Builder
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">Create drag-and-drop IF-THEN triggers, AI classifiers, and automated system actions.</p>
-            </div>
-
-            <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-2xl flex flex-col md:flex-row items-center justify-center gap-6 text-center md:text-left">
-              <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-primary font-bold text-xs flex items-center gap-2">
-                <Play className="h-4 w-4" /> Trigger Node
-              </div>
-              <ChevronRight className="h-5 w-5 text-slate-600 hidden md:block" />
-              <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl text-purple-300 font-bold text-xs flex items-center gap-2">
-                <Brain className="h-4 w-4" /> AI Classifier (GPT-4o / Claude)
-              </div>
-              <ChevronRight className="h-5 w-5 text-slate-600 hidden md:block" />
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 font-bold text-xs flex items-center gap-2">
-                <Shield className="h-4 w-4" /> Action: Delete & Alert Mods
-              </div>
-            </div>
-
-            {config.automations.map(auto => (
-              <div key={auto.id} className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-white text-sm">{auto.name}</h4>
-                  <p className="text-xs text-slate-500">{auto.description}</p>
-                </div>
-                <Switch checked={auto.enabled} onCheckedChange={() => {}} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 13. PROMPT LIBRARY */}
+        {/* 12. PROMPT LIBRARY */}
         {activeTab === "prompts" && (
           <div className="space-y-6">
             <div>

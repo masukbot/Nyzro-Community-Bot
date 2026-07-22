@@ -19,6 +19,9 @@ from typing import Any, Dict, List, Optional, AsyncIterator
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 import time
+import logging
+
+logger = logging.getLogger("ai.providers")
 
 
 @dataclass
@@ -147,6 +150,10 @@ class BaseProvider(ABC):
         Default returns 0 (free/unknown).
         """
         return 0.0
+
+    async def close(self):
+        """Clean up provider resources (e.g. aiohttp sessions). Override in subclasses."""
+        pass
 
     def _estimate_tokens(self, text: str) -> int:
         """Rough token estimation (4 chars ≈ 1 token)."""

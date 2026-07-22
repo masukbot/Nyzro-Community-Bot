@@ -434,7 +434,62 @@ export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfi
       success_rate_pct: 100,
     },
     providers: [],
-    models: [],
+    models: [
+      {
+        id: "m1", model_name: "gemini-2.5-flash", provider_id: "p1",
+        description: "Google's ultra-fast multimodal AI", context_window: 1048576,
+        max_output_tokens: 8192, supports_vision: true, input_cost_per_1m: 0.15,
+        output_cost_per_1m: 0.60, speed_rating: "ultra_fast",
+        recommended_use_cases: ["Chat AI", "Summarization"],
+        temperature: 0.7, top_p: 1.0, frequency_penalty: 0.0, presence_penalty: 0.0,
+        supports_image_gen: false, supports_audio: true, supports_streaming: true
+      },
+      {
+        id: "m2", model_name: "claude-3-5-sonnet-20241022", provider_id: "p2",
+        description: "Anthropic's flagship model", context_window: 200000,
+        max_output_tokens: 8192, supports_vision: true, input_cost_per_1m: 3.00,
+        output_cost_per_1m: 15.00, speed_rating: "balanced",
+        recommended_use_cases: ["Moderation AI", "Knowledge Assistant"],
+        temperature: 0.7, top_p: 1.0, frequency_penalty: 0.0, presence_penalty: 0.0,
+        supports_image_gen: false, supports_audio: false, supports_streaming: true
+      },
+      {
+        id: "m3", model_name: "gpt-4o", provider_id: "p3",
+        description: "OpenAI's high-intelligence flagship", context_window: 128000,
+        max_output_tokens: 4096, supports_vision: true, input_cost_per_1m: 2.50,
+        output_cost_per_1m: 10.00, speed_rating: "fast",
+        recommended_use_cases: ["Scam Image Detection", "OCR", "Translation"],
+        temperature: 0.7, top_p: 1.0, frequency_penalty: 0.0, presence_penalty: 0.0,
+        supports_image_gen: true, supports_audio: true, supports_streaming: true
+      },
+      {
+        id: "m4", model_name: "llama-3.3-70b-versatile", provider_id: "p4",
+        description: "Groq accelerated open weight model", context_window: 128000,
+        max_output_tokens: 4096, input_cost_per_1m: 0.59,
+        output_cost_per_1m: 0.79, speed_rating: "ultra_fast",
+        recommended_use_cases: ["Auto Moderation", "Spam Detection"],
+        temperature: 0.7, top_p: 1.0, frequency_penalty: 0.0, presence_penalty: 0.0,
+        supports_vision: false, supports_image_gen: false, supports_audio: false, supports_streaming: true
+      },
+      {
+        id: "m5", model_name: "deepseek-reasoner", provider_id: "p6",
+        description: "DeepSeek's advanced reasoning engine", context_window: 64000,
+        max_output_tokens: 4096, input_cost_per_1m: 0.55,
+        output_cost_per_1m: 2.19, speed_rating: "balanced",
+        recommended_use_cases: ["Toxicity Detection"],
+        temperature: 0.7, top_p: 1.0, frequency_penalty: 0.0, presence_penalty: 0.0,
+        supports_vision: false, supports_image_gen: false, supports_audio: false, supports_streaming: true
+      },
+      {
+        id: "m6", model_name: "llama3:latest", provider_id: "p7",
+        description: "Self-hosted local Ollama model", context_window: 32768,
+        max_output_tokens: 2048, input_cost_per_1m: 0.0,
+        output_cost_per_1m: 0.0, speed_rating: "fast",
+        recommended_use_cases: ["Privacy Chat", "Spam Filtering"],
+        temperature: 0.7, top_p: 1.0, frequency_penalty: 0.0, presence_penalty: 0.0,
+        supports_vision: false, supports_image_gen: false, supports_audio: false, supports_streaming: true
+      }
+    ],
     feature_assignments: [
       { feature_key: "chat_ai", feature_name: "Chat AI", description: "Handles interactive community chat conversations in designated channels.", category: "chat", assigned_model_id: "", fallback_model_id: "", enabled: false },
       { feature_key: "moderation_ai", feature_name: "Moderation AI", description: "Evaluates context, hate speech, and toxicity in messages.", category: "moderation", assigned_model_id: "", fallback_model_id: "", enabled: false },
@@ -482,53 +537,38 @@ export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfi
     },
     dm_warning: {
       guild_id: guildId,
-      enabled: true,
+      enabled: false,
       warning_template: "Hello {user}, your recent message in **{server}** was automatically flagged by our AI Moderation System for reason: **{reason}**. Please follow the server guidelines.",
       languages: ["English", "Spanish", "French", "German"],
       cooldown_seconds: 60,
       appeal_button_enabled: true,
       notify_moderators: true,
-      log_channel_id: "102938475610293899"
+      log_channel_id: ""
     },
     translation: {
       guild_id: guildId,
-      enabled: true,
-      assigned_model_id: "m3",
+      enabled: false,
+      assigned_model_id: "",
       target_languages: ["English", "Spanish", "French", "German", "Japanese"],
-      translate_messages: true,
-      translate_embeds: true,
-      translate_tickets: true,
+      translate_messages: false,
+      translate_embeds: false,
+      translate_tickets: false,
       translate_announcements: false
     },
     ticket_form_assistant: {
       guild_id: guildId,
-      ticket_summarization: true,
-      suggest_mod_replies: true,
-      faq_auto_response: true,
-      ticket_sentiment_analysis: true,
-      urgent_escalation: true,
-      form_validation: true,
-      form_application_scoring: true,
-      form_spam_detection: true,
-      assigned_model_id: "m2"
+      ticket_summarization: false,
+      suggest_mod_replies: false,
+      faq_auto_response: false,
+      ticket_sentiment_analysis: false,
+      urgent_escalation: false,
+      form_validation: false,
+      form_application_scoring: false,
+      form_spam_detection: false,
+      assigned_model_id: ""
     },
-    automations: [
-      {
-        id: "auto1",
-        name: "Auto Scam Shield & Mod Notification",
-        description: "If message is classified as scam/phishing, delete message, send user DM warning, and alert moderators.",
-        enabled: true,
-        nodes: [
-          { id: "n1", type: "trigger", label: "On Message Received", config: { channel_scope: "all" } },
-          { id: "n2", type: "ai_classifier", label: "Scam Detection Model", config: { model_id: "m2", threshold: 0.9 } },
-          { id: "n3", type: "action", label: "Delete Message & Notify Mods", config: { action_type: "delete_and_alert" } }
-        ]
-      }
-    ],
-    prompts: [
-      { id: "pr1", title: "General Support Prompt", version: "v1.2", tags: ["Support", "FAQ"], content: "Provide clear answers to user inquiries using server documentation. Be concise.", assigned_feature: "knowledge_assistant" },
-      { id: "pr2", title: "Moderation Context Evaluator", version: "v2.0", tags: ["Moderation", "Safety"], content: "Evaluate context for sarcastic intent vs explicit hostility. Output JSON classification.", assigned_feature: "moderation_ai" }
-    ],
+    automations: [],
+    prompts: [],
     failover: {
       guild_id: guildId,
       enabled: true,
