@@ -97,7 +97,7 @@ export function TicketsForm({ initialConfig, guildId, channels, roles }: Tickets
   const handleAddCategory = () => {
     setEditingCategory({ 
       index: -1, 
-      data: { name: "", emoji: "📩", staff_roles: [], button_style: 2, discord_category_id: "" } 
+      data: { name: "", emoji: "📩", staff_roles: [], button_style: 2, discord_category_id: null } 
     });
     setIsAdding(true);
   };
