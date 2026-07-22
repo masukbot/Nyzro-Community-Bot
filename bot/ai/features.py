@@ -138,6 +138,14 @@ FEATURES: Dict[str, FeatureDefinition] = {
         category="support",
         assigned_model_id="m2",
         fallback_model_id="m1"
+    ),
+    "admin_ai": FeatureDefinition(
+        feature_key="admin_ai",
+        feature_name="Admin AI",
+        description="AI-powered server administration assistant in designated channels.",
+        category="admin",
+        assigned_model_id="m1",
+        fallback_model_id="m4"
     )
 }
 

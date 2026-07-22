@@ -498,9 +498,23 @@ export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfi
       { feature_key: "translation", feature_name: "Translation", description: "Multi-language real-time translation of user messages.", category: "utility", assigned_model_id: "", fallback_model_id: "", enabled: false },
       { feature_key: "summarization", feature_name: "Summarization", description: "Generates quick recaps of active chat threads and ticket discussions.", category: "utility", assigned_model_id: "", fallback_model_id: "", enabled: false },
       { feature_key: "ticket_form_assistant", feature_name: "Ticket Form Assistant", description: "Summarizes support tickets, suggests mod responses, and scores forms.", category: "utility", assigned_model_id: "", fallback_model_id: "", enabled: false },
+      { feature_key: "admin_ai", feature_name: "Admin AI", description: "AI-powered server management assistant in designated channels.", category: "admin", assigned_model_id: "", fallback_model_id: "", enabled: false },
     ],
     chat_channels: [],
     personas: [],
+    admin_ai: {
+      channel_id: "",
+      system_prompt: "You are an AI server administrator. You help manage the Discord server by executing administrative actions based on user requests. You can manage roles, channels, members, and messages. Always confirm destructive actions. Be professional and efficient.",
+      model_id: "",
+      require_confirmation: true,
+      allowed_actions: {
+        manage_roles: true,
+        manage_channels: true,
+        manage_members: true,
+        manage_messages: true,
+        manage_server: false
+      }
+    },
     memory: {
       guild_id: guildId,
       global_mode: "disabled",

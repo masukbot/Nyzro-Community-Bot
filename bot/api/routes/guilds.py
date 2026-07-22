@@ -1784,7 +1784,8 @@ async def get_ai_config(guild_id: int):
             prompts=data.get("prompts", []),
             failover=failover_dict,
             failover_config=failover_dict,
-            budget_limit=data.get("budget_limit", 50.0)
+            budget_limit=data.get("budget_limit", 50.0),
+            admin_ai=data.get("admin_ai", {"channel_id": "", "system_prompt": "", "model_id": "", "require_confirmation": True, "allowed_actions": {"manage_roles": True, "manage_channels": True, "manage_members": True, "manage_messages": True, "manage_server": False}})
         )
     except Exception:
         return AIConfigSchema(guild_id=guild_id, ai_enabled=False)
@@ -1865,6 +1866,9 @@ async def update_ai_config(guild_id: int, data: AIConfigUpdateSchema):
 
     if data.budget_limit is not None:
         current_json["budget_limit"] = data.budget_limit
+
+    if data.admin_ai is not None:
+        current_json["admin_ai"] = data.admin_ai
 
     await db.execute(
         "INSERT OR REPLACE INTO ai_guild_configs (guild_id, ai_enabled, config_json) VALUES (?, ?, ?)",

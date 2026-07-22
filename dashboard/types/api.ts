@@ -403,6 +403,20 @@ export interface AIPersonaConfig {
   code_formatting_rules: string;
 }
 
+export interface AIAdminAIConfig {
+  channel_id: string;
+  system_prompt: string;
+  model_id: string;
+  require_confirmation: boolean;
+  allowed_actions: {
+    manage_roles: boolean;
+    manage_channels: boolean;
+    manage_members: boolean;
+    manage_messages: boolean;
+    manage_server: boolean;
+  };
+}
+
 export interface AIMemoryConfig {
   guild_id: string;
   global_mode: "disabled" | "temporary" | "persistent" | "per_user" | "per_channel" | "per_server";
@@ -564,6 +578,7 @@ export interface EnterpriseAIConfig {
   feature_assignments: AIFeatureAssignment[];
   chat_channels: AIChatChannelConfig[];
   personas: AIPersonaConfig[];
+  admin_ai: AIAdminAIConfig;
   memory: AIMemoryConfig;
   moderation_detectors: AIModerationDetector[];
   vision: AIVisionConfig;

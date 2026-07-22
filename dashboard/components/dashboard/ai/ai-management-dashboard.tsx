@@ -23,7 +23,6 @@ import {
   Cpu,
   Layers,
   MessageSquare,
-  UserCheck,
   Eye,
   Paperclip,
   Bell,
@@ -49,7 +48,8 @@ import {
   ChevronLeft,
   KeyRound,
   FileText,
-  Trash2
+  Trash2,
+  Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, getInitialEnterpriseAIConfig } from "@/lib/api";
@@ -103,7 +103,7 @@ const SUB_MODULES = [
   { id: "providers", name: "AI Providers", icon: Server },
   { id: "assignment", name: "Feature Mapping", icon: Layers },
   { id: "channels", name: "AI Chat Channels", icon: MessageSquare },
-  { id: "personas", name: "AI Personas", icon: UserCheck },
+  { id: "admin_ai", name: "Admin AI", icon: Shield },
   { id: "vision", name: "Vision & Attachments", icon: Eye },
   { id: "dm_warnings", name: "DM Warnings", icon: Bell },
   { id: "services", name: "Translation & Tickets", icon: Languages },
@@ -202,7 +202,8 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       dm_warning: { ...fallback.dm_warning, ...(cfg.dm_warning || {}) },
       translation: { ...fallback.translation, ...(cfg.translation || {}) },
       ticket_form_assistant: { ...fallback.ticket_form_assistant, ...(cfg.ticket_form_assistant || {}) },
-      failover: { ...fallback.failover, ...(cfg.failover || {}) }
+      failover: { ...fallback.failover, ...(cfg.failover || {}) },
+      admin_ai: { ...fallback.admin_ai, ...(cfg.admin_ai || {}) }
     };
   });
   const [activeTab, setActiveTab] = useState<string>("overview");
@@ -1053,83 +1054,136 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
         )}
 
         {/* 6. AI PERSONAS */}
-        {activeTab === "personas" && (
+        {activeTab === "admin_ai" && (
           <div className="space-y-6">
             <div>
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-primary" />
-                AI Personas & Personality Presets
+                <Shield className="h-5 w-5 text-primary" />
+                Admin AI — Server Administration Assistant
               </h3>
-              <p className="text-xs text-slate-400 mt-1">Craft unique system prompts and formatting rules for your AI.</p>
+              <p className="text-xs text-slate-400 mt-1">Designate a channel where you can talk to the AI and it will execute server admin actions (roles, channels, members, messages) based on your requests.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {config.personas.map(p => (
-                <div key={p.id} className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-white text-lg">{p.name}</h4>
-                    <span className="px-2.5 py-1 bg-slate-800 text-slate-400 text-[10px] uppercase font-black rounded-lg">
-                      {p.preset_type}
-                    </span>
-                  </div>
+            <div className="bg-[#141B2D] border border-slate-800 rounded-3xl p-8 shadow-xl space-y-8 max-w-3xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-white text-base">Enable Admin AI</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Toggle the admin_ai feature in Feature Mapping to activate</p>
+                </div>
+                <Switch
+                  checked={config.feature_assignments.find(f => f.feature_key === "admin_ai")?.enabled ?? false}
+                  onCheckedChange={(val) => setConfig(prev => ({
+                    ...prev,
+                    feature_assignments: prev.feature_assignments.map(f =>
+                      f.feature_key === "admin_ai" ? { ...f, enabled: val } : f
+                    )
+                  }))}
+                />
+              </div>
 
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase">Listening Channel</label>
+                <p className="text-[10px] text-slate-600 mt-0.5 mb-2">The AI will read messages in this channel and respond with actions.</p>
+                <Select
+                  value={config.admin_ai.channel_id}
+                  onValueChange={(val) => setConfig(prev => ({
+                    ...prev,
+                    admin_ai: { ...prev.admin_ai, channel_id: val }
+                  }))}
+                  options={[
+                    { value: "", label: "-- Select a Channel --" },
+                    ...channels
+                      .filter(c => c.type === "text" || c.type === "0")
+                      .map(c => ({ value: c.id, label: `#${c.name}` })),
+                  ]}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">System Prompt</label>
-                    <Textarea
-                      rows={3}
-                      value={p.system_prompt}
-                      onChange={(e) => setConfig(prev => ({
+                    <h4 className="font-bold text-white text-base">AI Model</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Which model to use for Admin AI responses</p>
+                  </div>
+                  <div className="w-56">
+                    <Select
+                      value={config.admin_ai.model_id || config.feature_assignments.find(f => f.feature_key === "admin_ai")?.assigned_model_id || ""}
+                      onValueChange={(val) => setConfig(prev => ({
                         ...prev,
-                        personas: prev.personas.map(item => item.id === p.id ? { ...item, system_prompt: e.target.value } : item)
+                        admin_ai: { ...prev.admin_ai, model_id: val }
                       }))}
-                      className="bg-slate-900/60 border-slate-800 text-xs mt-1"
+                      options={config.models.length > 0 ? [
+                        { value: "", label: "-- Inherit from Feature Mapping --" },
+                        ...config.models.map(m => {
+                          const prov = config.providers.find(p => p.id === m.provider_id);
+                          return { value: m.id, label: `${m.model_name}${prov ? ` (${prov.name})` : ""}` };
+                        })
+                      ] : [{ value: "", label: "No Models Available" }]}
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Response Style</label>
-                      <Select
-                        value={p.response_style}
-                        onValueChange={(val: any) => setConfig(prev => ({
-                          ...prev,
-                          personas: prev.personas.map(item => item.id === p.id ? { ...item, response_style: val } : item)
-                        }))}
-                        options={[
-                          { value: "concise", label: "Concise" },
-                          { value: "detailed", label: "Detailed" },
-                          { value: "playful", label: "Playful" },
-                          { value: "formal", label: "Formal" },
-                          { value: "technical", label: "Technical" },
-                        ]}
-                        className="mt-1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Emoji Usage</label>
-                      <Select
-                        value={p.emoji_usage}
-                        onValueChange={(val: any) => setConfig(prev => ({
-                          ...prev,
-                          personas: prev.personas.map(item => item.id === p.id ? { ...item, emoji_usage: val } : item)
-                        }))}
-                        options={[
-                          { value: "none", label: "None" },
-                          { value: "subtle", label: "Subtle" },
-                          { value: "expressive", label: "Expressive" },
-                        ]}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
                 </div>
-              ))}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase">System Prompt</label>
+                <p className="text-[10px] text-slate-600 mt-0.5 mb-2">Instructions that define how the Admin AI behaves and what rules it follows.</p>
+                <Textarea
+                  rows={6}
+                  value={config.admin_ai.system_prompt}
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
+                    admin_ai: { ...prev.admin_ai, system_prompt: e.target.value }
+                  }))}
+                  className="bg-slate-900/60 border-slate-800 text-xs mt-1 font-mono"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="font-bold text-white text-base">Require Confirmation</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Always ask before executing destructive actions</p>
+                  </div>
+                  <Switch
+                    checked={config.admin_ai.require_confirmation}
+                    onCheckedChange={(val) => setConfig(prev => ({
+                      ...prev,
+                      admin_ai: { ...prev.admin_ai, require_confirmation: val }
+                    }))}
+                  />
+                </div>
+
+                <h4 className="font-bold text-white text-sm mb-3">Allowed Permissions</h4>
+                <div className="space-y-3">
+                  {[
+                    { key: "manage_roles" as const, label: "Manage Roles", desc: "Create, delete, assign, and remove roles" },
+                    { key: "manage_channels" as const, label: "Manage Channels", desc: "Create, delete, rename, and configure channels" },
+                    { key: "manage_members" as const, label: "Manage Members", desc: "Kick, ban, timeout, and warn members" },
+                    { key: "manage_messages" as const, label: "Manage Messages", desc: "Delete, pin, and purge messages" },
+                    { key: "manage_server" as const, label: "Manage Server", desc: "Change server name, icon, and settings" },
+                  ].map(perm => (
+                    <div key={perm.key} className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
+                      <div>
+                        <span className="text-sm font-bold text-slate-200">{perm.label}</span>
+                        <p className="text-[10px] text-slate-500">{perm.desc}</p>
+                      </div>
+                      <Switch
+                        checked={config.admin_ai.allowed_actions[perm.key]}
+                        onCheckedChange={(val) => setConfig(prev => ({
+                          ...prev,
+                          admin_ai: {
+                            ...prev.admin_ai,
+                            allowed_actions: { ...prev.admin_ai.allowed_actions, [perm.key]: val }
+                          }
+                        }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
-
-
 
         {/* 8. VISION & ATTACHMENT SCANNER */}
         {activeTab === "vision" && (

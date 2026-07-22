@@ -100,7 +100,8 @@ from .events.mention import Mention
 from .events.react import React
 from .events.autoreact import AutoReactListener
 #from .events.topgg import TopGG
-from .events.ai import AIResponses 
+from .events.ai import AIResponses
+from .events.admin_ai import AdminAI
 from .events.stickymessage import StickyMessageListener
 
 ########-------HELP-------########
@@ -232,7 +233,7 @@ async def setup(bot: nyzro):
     (Guild, [bot]), (Errors, [bot]), (Autorole2, [bot]), (Autorole, [bot]),
     (greet, [bot]), (AutoResponder, [bot]), (Mention, [bot]), (AutoRole, [bot]),
     (React, [bot]), (AutoReaction, [bot]), (AutoReactListener, [bot]),
-    (NotifCommands, [bot]), (StickyMessageListener, [bot]), (AIResponses, [bot]),
+    (NotifCommands, [bot]), (StickyMessageListener, [bot]), (AIResponses, [bot]), (AdminAI, [bot]),
     (AntiMemberUpdate, [bot]), (AntiBan, [bot]), (AntiBotAdd, [bot]),
     (AntiChannelCreate, [bot]), (AntiChannelDelete, [bot]), (AntiChannelUpdate, [bot]),
     (AntiEveryone, [bot]), (AntiGuildUpdate, [bot]), (AntiIntegration, [bot]),

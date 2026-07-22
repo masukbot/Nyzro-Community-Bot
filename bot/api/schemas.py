@@ -484,6 +484,7 @@ class AIConfigSchema(BaseModel):
     failover: Dict = {"enabled": False}
     failover_config: Dict = {"enabled": False}
     budget_limit: float = 50.0
+    admin_ai: Dict = {"channel_id": "", "system_prompt": "", "model_id": "", "require_confirmation": True, "allowed_actions": {"manage_roles": True, "manage_channels": True, "manage_members": True, "manage_messages": True, "manage_server": False}}
 
 class AIConfigUpdateSchema(BaseModel):
     ai_enabled: Optional[bool] = None
@@ -508,4 +509,5 @@ class AIConfigUpdateSchema(BaseModel):
     failover: Optional[Dict] = None
     failover_config: Optional[Dict] = None
     budget_limit: Optional[float] = None
+    admin_ai: Optional[Dict] = None
 
