@@ -358,7 +358,7 @@ export interface AIFeatureAssignment {
   feature_key: string;
   feature_name: string;
   description: string;
-  category: "chat" | "moderation" | "vision" | "utility" | "support";
+  category: "chat" | "moderation" | "vision" | "utility" | "support" | "admin";
   assigned_model_id: string;
   fallback_model_id: string;
   enabled: boolean;
