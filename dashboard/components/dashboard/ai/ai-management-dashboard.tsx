@@ -1410,7 +1410,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Action on Limit</label>
                   <select className="w-full bg-slate-900/60 border border-slate-800 rounded-xl p-2 text-xs text-white mt-1"
                     value={config.dm_warning.strikes?.action || "mute"}
-                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, strikes: { ...prev.dm_warning.strikes, action: e.target.value } } }))}
+                    onChange={(e) => setConfig(prev => ({ ...prev, dm_warning: { ...prev.dm_warning, strikes: { ...prev.dm_warning.strikes, action: e.target.value as "mute" | "kick" | "ban" } } }))}
                   >
                     <option value="mute">Timeout (Mute)</option>
                     <option value="kick">Kick</option>
