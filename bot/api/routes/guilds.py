@@ -1943,10 +1943,14 @@ async def send_manual_dm_warning(guild_id: int, payload: dict):
             from cogs.events.ai import AppealButton
             view.add_item(AppealButton(bot, guild_id, int(user_id), dm_cfg))
         if fmt == "embed":
-            from cogs.events.ai import _build_dm_embed, _get_dm_template
-            color_hex = feat_cfg.get("color") or dm_cfg.get("color", "#5865F2")
-            tpl = {"title": feat_cfg.get("title", "Staff Warning"), "message": template, "color": color_hex}
-            embed = _build_dm_embed(user, guild, reason, tpl, 0, 3)
+            from cogs.events.ai import _build_dm_embed
+            feat_cfg_embed = {
+                "title": feat_cfg.get("title", "Staff Warning"),
+                "message": template,
+                "color": feat_cfg.get("color") or dm_cfg.get("color", "#5865F2"),
+                "template": template,
+            }
+            embed = _build_dm_embed(user, guild, reason, feat_cfg_embed, 0, 3)
             if image_url:
                 embed.set_image(url=image_url)
             await user.send(embed=embed, view=view if view.children else None)
@@ -1999,9 +2003,14 @@ async def broadcast_dm_warning(guild_id: int, payload: dict):
                     from cogs.events.ai import AppealButton
                     view.add_item(AppealButton(bot, guild_id, member.id, dm_cfg))
                 if fmt == "embed":
-                    from cogs.events.ai import _build_dm_embed, _get_dm_template
-                    tpl = {"title": feat_cfg.get("title", "Staff Warning"), "message": template, "color": feat_cfg.get("color") or dm_cfg.get("color", "#5865F2")}
-                    embed = _build_dm_embed(member, guild, reason, tpl, 0, 3)
+                    from cogs.events.ai import _build_dm_embed
+                    feat_cfg_embed = {
+                        "title": feat_cfg.get("title", "Staff Warning"),
+                        "message": template,
+                        "color": feat_cfg.get("color") or dm_cfg.get("color", "#5865F2"),
+                        "template": template,
+                    }
+                    embed = _build_dm_embed(member, guild, reason, feat_cfg_embed, 0, 3)
                     if image_url:
                         embed.set_image(url=image_url)
                     await member.send(embed=embed, view=view if view.children else None)

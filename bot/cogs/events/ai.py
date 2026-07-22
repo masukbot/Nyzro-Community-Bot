@@ -59,27 +59,15 @@ async def _add_strike(guild_id: int, user_id: int):
         )
     await db.commit()
     return new_count
-
-def _get_dm_template(dm_cfg: dict, feature_key: str) -> dict:
-    templates = dm_cfg.get("templates", {})
-    default = {
-        "title": "Warning from {guild_name}",
-        "message": "You received a warning in **{guild_name}**.\nReason: {reason}",
-        "color": "#FF4444"
-    }
-    return templates.get(feature_key, default)
-
-def _build_dm_embed(user: discord.User, guild: discord.Guild, reason: str, tpl: dict, strike_count: int, max_strikes: int):
-    color_hex = tpl.get("color", "#FF4444").lstrip("#")
+def _build_dm_embed(user: discord.User, guild: discord.Guild, reason: str, feat_cfg: dict, strike_count: int, max_strikes: int):
+    title = feat_cfg.get("title", "Warning from {guild_name}").replace("{guild_name}", guild.name)
+    desc = (feat_cfg.get("message") or feat_cfg.get("template") or "Warning from {guild_name}: {reason}").replace("{guild_name}", guild.name).replace("{reason}", reason[:500]).replace("{strikes}", str(strike_count)).replace("{max_strikes}", str(max_strikes))
+    color_hex = (feat_cfg.get("color") or "#FF4444").lstrip("#")
     try:
         color = int(color_hex, 16)
     except ValueError:
         color = 0xFF4444
-    embed = discord.Embed(
-        title=tpl.get("title", "Warning").replace("{guild_name}", guild.name),
-        description=tpl.get("message", "{reason}").replace("{guild_name}", guild.name).replace("{reason}", reason[:500]).replace("{strikes}", str(strike_count)).replace("{max_strikes}", str(max_strikes)),
-        color=color
-    )
+    embed = discord.Embed(title=title, description=desc, color=color)
     embed.set_author(name=guild.name, icon_url=guild.icon.url if guild.icon else None)
     embed.set_footer(text=f"User ID: {user.id} | Strike {strike_count}/{max_strikes}")
     embed.timestamp = discord.utils.utcnow()
@@ -133,16 +121,15 @@ class AppealModal(discord.ui.Modal, title="Appeal Your Warning"):
         except Exception as e:
             logger.error(f"Failed to send appeal: {e}")
 
-class AppealButton(discord.ui.View):
+class AppealButton(discord.ui.Button):
     def __init__(self, bot, guild_id: int, user_id: int, dm_cfg: dict):
-        super().__init__(timeout=None)
+        super().__init__(label="Appeal Warning", style=discord.ButtonStyle.danger, emoji="📩")
         self.bot = bot
         self.guild_id = guild_id
         self.user_id = user_id
         self.dm_cfg = dm_cfg
 
-    @discord.ui.button(label="Appeal Warning", style=discord.ButtonStyle.danger, emoji="📩")
-    async def appeal_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
             await interaction.response.send_message("This appeal button is not for you.", ephemeral=True)
             return
@@ -209,11 +196,14 @@ class AIResponses(commands.Cog):
 
     async def _send_dm_warning(self, user: discord.User, guild: discord.Guild, data: dict, reason: str, feature_key: str = "manual"):
         dm_cfg = data.get("dm_warning", {})
+        logger.info(f"[DM Warning] Guild={guild.id} User={user.id} Feature={feature_key} Reason={reason[:50]} dm_cfg={dm_cfg.get('enabled')}")
         if not dm_cfg.get("enabled", False):
+            logger.info(f"[DM Warning] Skipped: dm_warning not enabled")
             return
         per_feature = dm_cfg.get("per_feature", {})
         feat_cfg = per_feature.get(feature_key, {})
         if feat_cfg.get("enabled") is False:
+            logger.info(f"[DM Warning] Skipped: per_feature.{feature_key} not enabled")
             return
         strike_cfg = dm_cfg.get("strikes", {})
         max_strikes = int(strike_cfg.get("max_strikes", 3))
@@ -227,14 +217,15 @@ class AIResponses(commands.Cog):
         msg_text = template.replace("{guild_name}", guild.name).replace("{reason}", reason[:500]).replace("{strikes}", str(strike_count)).replace("{max_strikes}", str(max_strikes))
         try:
             view = discord.ui.View()
-            if dm_cfg.get("appeal", {}).get("enabled", False):
+            appeal_cfg = dm_cfg.get("appeal", {})
+            if appeal_cfg.get("enabled", False):
                 view.add_item(AppealButton(self.bot, guild.id, user.id, dm_cfg))
             if fmt == "embed":
-                tpl = _get_dm_template(dm_cfg, feature_key)
-                embed = _build_dm_embed(user, guild, reason, tpl, strike_count, max_strikes)
+                embed = _build_dm_embed(user, guild, reason, feat_cfg, strike_count, max_strikes)
                 await user.send(embed=embed, view=view if view.children else None)
             else:
                 await user.send(msg_text, view=view if view.children else None)
+            logger.info(f"[DM Warning] Successfully sent to {user} ({user.id}) via {fmt}")
             if dm_cfg.get("notify_moderators", False):
                 for chan in guild.text_channels:
                     if chan.permissions_for(guild.me).send_messages and "mod" in chan.name.lower():
@@ -243,9 +234,9 @@ class AIResponses(commands.Cog):
             if strike_cfg.get("enabled", False) and strike_count >= max_strikes:
                 await self._enforce_strike_limit(user, guild, strike_cfg)
         except discord.Forbidden:
-            pass
+            logger.warning(f"[DM Warning] Forbidden: {user} has DMs disabled")
         except Exception as e:
-            logger.error(f"Failed to send DM warning to {user}: {e}")
+            logger.error(f"[DM Warning] Failed to send to {user}: {e}", exc_info=True)
 
     async def _enforce_strike_limit(self, user: discord.User, guild: discord.Guild, strike_cfg: dict):
         action = strike_cfg.get("action", "mute")
