@@ -3,6 +3,7 @@ from discord.ext import commands
 import io
 import json
 import logging
+import datetime
 import aiohttp
 from utils.Tools import *
 
@@ -253,7 +254,7 @@ class AIResponses(commands.Cog):
             if not member:
                 return
             if action == "mute":
-                await member.timeout(discord.utils.utcnow() + discord.timedelta(minutes=duration),
+                await member.timeout(discord.utils.utcnow() + datetime.timedelta(minutes=duration),
                                      reason=f"Exceeded max AI warning strikes ({strike_cfg.get('max_strikes', 3)})")
             elif action == "kick":
                 await member.kick(reason=f"Exceeded max AI warning strikes")
@@ -262,23 +263,89 @@ class AIResponses(commands.Cog):
         except Exception as e:
             logger.error(f"Failed to enforce strike limit on {user}: {e}")
 
-    async def _handle_moderation(self, manager, message, feature_key, data):
-        result = await manager.execute_moderation(message.content[:2000], feature_key=feature_key)
-        if result.get("flagged") and result.get("severity") in ("high", "critical"):
-            reason = result.get("reason", "Violates server policy")
+    def _build_detector_prompt(self, detectors: list) -> str:
+        enabled = [d for d in detectors if d.get("enabled")]
+        if not enabled:
+            return ""
+        lines = ["You are a content moderation AI. Check the message for these specific categories:"]
+        for d in enabled:
+            did = d.get("id", "unknown")
+            dname = d.get("name", did)
+            dsens = d.get("sensitivity", 80)
+            lines.append(f"- {did} ({dname}): threshold {dsens}% confidence")
+        lines.append('Respond ONLY in valid JSON with no markdown:')
+        cats = '","'.join(d.get("id", "unknown") for d in enabled)
+        lines.append(f'{{"detected_categories": ["{cats}"], "detected": ["category_id",...], "reason": "brief"}}')
+        lines.append('If nothing is detected, return: {"detected_categories": [], "reason": "Clean"}')
+        return "\n".join(lines)
+
+    async def _execute_detector_actions(self, manager, message, data, result, detectors: list):
+        detected = result.get("detected", []) or result.get("detected_categories", [])
+        reason = result.get("reason", "Flagged by AI")
+        if not detected:
+            return
+        for det in detectors:
+            if not det.get("enabled"):
+                continue
+            did = det.get("id")
+            if did not in detected:
+                continue
+            action = det.get("action", "delete")
+            sensitivity = det.get("sensitivity", 80)
             try:
-                await message.delete()
-                warn = await message.channel.send(
-                    f"{message.author.mention} Your message was removed by AI moderation. "
-                    f"Reason: {reason[:200]}"
-                )
-                await warn.delete(delay=5)
+                if action in ("delete", "timeout", "kick", "ban"):
+                    await message.delete()
+                if action == "warn":
+                    await message.channel.send(
+                        f"{message.author.mention} ⚠️ {det.get('name')}: {reason[:200]}",
+                        delete_after=5
+                    )
+                elif action == "timeout":
+                    await message.author.timeout(discord.utils.utcnow() + datetime.timedelta(minutes=10),
+                                                 reason=f"AI Mod: {det.get('name')}")
+                elif action == "kick":
+                    member = message.guild.get_member(message.author.id)
+                    if member:
+                        await member.kick(reason=f"AI Mod: {det.get('name')}")
+                elif action == "ban":
+                    member = message.guild.get_member(message.author.id)
+                    if member:
+                        await member.ban(reason=f"AI Mod: {det.get('name')}", delete_message_days=1)
+                await self._send_dm_warning(message.author, message.guild, data, reason, did)
             except discord.Forbidden:
                 pass
-            await self._send_dm_warning(message.author, message.guild, data, reason, feature_key)
+
+    async def _handle_moderation(self, manager, message, feature_key, data):
+        detectors = data.get("moderation_detectors", [])
+        prompt = self._build_detector_prompt(detectors)
+        if not prompt:
+            result = await manager.execute_moderation(message.content[:2000], feature_key=feature_key)
+            if result.get("flagged") and result.get("severity") in ("high", "critical"):
+                reason = result.get("reason", "Violates server policy")
+                try:
+                    await message.delete()
+                    warn = await message.channel.send(
+                        f"{message.author.mention} Your message was removed by AI moderation. Reason: {reason[:200]}"
+                    )
+                    await warn.delete(delay=5)
+                except discord.Forbidden:
+                    pass
+                await self._send_dm_warning(message.author, message.guild, data, reason, feature_key)
+        else:
+            result = await manager.execute_moderation(message.content[:2000], feature_key=feature_key, system_prompt=prompt)
+            await self._execute_detector_actions(manager, message, data, result, detectors)
 
     async def _handle_auto_moderation(self, manager, message, feature_key, data):
-        result = await manager.execute_moderation(message.content[:2000], feature_key=feature_key)
+        detectors = data.get("moderation_detectors", [])
+        prompt = self._build_detector_prompt(detectors)
+        if not prompt:
+            result = await manager.execute_moderation(message.content[:2000], feature_key=feature_key)
+            await self._handle_auto_moderation_fallback(message, data, result, feature_key)
+        else:
+            result = await manager.execute_moderation(message.content[:2000], feature_key=feature_key, system_prompt=prompt)
+            await self._execute_detector_actions(manager, message, data, result, detectors)
+
+    async def _handle_auto_moderation_fallback(self, message, data, result, feature_key):
         action = result.get("action", "allow")
         reason = result.get("reason", "Auto moderation triggered")
         if action == "delete":
@@ -290,8 +357,7 @@ class AIResponses(commands.Cog):
         elif action == "warn":
             try:
                 await message.channel.send(
-                    f"{message.author.mention} ⚠️ Warning: {reason[:200]}",
-                    delete_after=5
+                    f"{message.author.mention} ⚠️ Warning: {reason[:200]}", delete_after=5
                 )
             except discord.Forbidden:
                 pass
@@ -304,8 +370,7 @@ class AIResponses(commands.Cog):
             try:
                 await message.channel.send(
                     f"{message.author.mention} Please keep conversations respectful. "
-                    f"Toxicity detected: {reason[:200]}",
-                    delete_after=8
+                    f"Toxicity detected: {reason[:200]}", delete_after=8
                 )
             except discord.Forbidden:
                 pass

@@ -509,7 +509,21 @@ export function getInitialEnterpriseAIConfig(guildId: string): EnterpriseAIConfi
       expiration_hours: 24,
       auto_cleanup: true
     },
-    moderation_detectors: [],
+    moderation_detectors: [
+      { id: "hate_speech", name: "Hate Speech", description: "Detects racial, ethnic, religious slurs and hateful language.", enabled: true, sensitivity: 85, assigned_model_id: "", action: "delete", cooldown_seconds: 30 },
+      { id: "harassment", name: "Harassment & Bullying", description: "Detects personal attacks, intimidation, and targeted harassment.", enabled: true, sensitivity: 80, assigned_model_id: "", action: "warn", cooldown_seconds: 30 },
+      { id: "toxicity", name: "Toxicity & Hostility", description: "Detects aggressive, hostile, and toxic language patterns.", enabled: true, sensitivity: 75, assigned_model_id: "", action: "warn", cooldown_seconds: 20 },
+      { id: "nsfw_text", name: "NSFW / Explicit Text", description: "Detects sexually explicit, obscene content and roleplay.", enabled: true, sensitivity: 90, assigned_model_id: "", action: "delete", cooldown_seconds: 60 },
+      { id: "violence", name: "Violence & Gore", description: "Detects threats, encouragement, or descriptions of violence.", enabled: true, sensitivity: 85, assigned_model_id: "", action: "delete", cooldown_seconds: 60 },
+      { id: "threats", name: "Direct Threats", description: "Detects direct threats of harm to individuals or groups.", enabled: true, sensitivity: 95, assigned_model_id: "", action: "kick", cooldown_seconds: 120 },
+      { id: "self_harm", name: "Self-Harm & Suicide", description: "Detects mentions of self-harm, suicide, or crisis content.", enabled: true, sensitivity: 95, assigned_model_id: "", action: "dm_warn", cooldown_seconds: 0 },
+      { id: "spam_detector", name: "Spam & Mass Mention", description: "Detects repetitive spam, mass mentions, and advertisement.", enabled: true, sensitivity: 80, assigned_model_id: "", action: "delete", cooldown_seconds: 15 },
+      { id: "phishing", name: "Phishing & Scams", description: "Detects phishing links, scam attempts, and suspicious URLs.", enabled: true, sensitivity: 90, assigned_model_id: "", action: "ban", cooldown_seconds: 120 },
+      { id: "personal_info", name: "Personal Information (PII)", description: "Detects sharing of personal info: emails, phones, addresses, SSN.", enabled: true, sensitivity: 85, assigned_model_id: "", action: "delete", cooldown_seconds: 60 },
+      { id: "discord_tos", name: "Discord ToS Violations", description: "Detects content violating Discord Terms of Service.", enabled: true, sensitivity: 90, assigned_model_id: "", action: "delete", cooldown_seconds: 60 },
+      { id: "raiding", name: "Raiding / Server Crashes", description: "Detects coordination for raiding, mass joins, or server disruption.", enabled: true, sensitivity: 95, assigned_model_id: "", action: "ban", cooldown_seconds: 300 },
+      { id: "custom_filter", name: "Custom Keyword Filter", description: "Flags messages containing custom-defined keywords or patterns.", enabled: false, sensitivity: 100, assigned_model_id: "", action: "warn", cooldown_seconds: 10 },
+    ],
     vision: {
       guild_id: guildId,
       scam_image_detection: false,

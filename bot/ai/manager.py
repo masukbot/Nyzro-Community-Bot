@@ -261,14 +261,16 @@ class AIManager:
         self,
         text: str,
         feature_key: str = "moderation_ai",
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Execute content moderation on text. Returns structured JSON result.
         Falls back to safe defaults if parsing fails.
+        Pass system_prompt in kwargs to override the default moderation prompt.
         """
         messages = [{"role": "user", "content": f"Analyze this message: {text[:2000]}"}]
         try:
-            response = await self.execute_feature_typed(feature_key, messages)
+            response = await self.execute_feature_typed(feature_key, messages, **kwargs)
             parsed = json.loads(response.content.strip().strip("```json").strip("```").strip())
             return parsed
         except (json.JSONDecodeError, ValueError) as e:
