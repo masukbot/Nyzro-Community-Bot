@@ -51,7 +51,8 @@ import {
   ChevronRight,
   ChevronLeft,
   KeyRound,
-  FileText
+  FileText,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, getInitialEnterpriseAIConfig } from "@/lib/api";
@@ -1316,9 +1317,21 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
                 <div key={pr.id} className="bg-[#141B2D] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-white text-base">{pr.title}</h4>
-                    <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-black rounded-full">
-                      {pr.version}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-black rounded-full">
+                        {pr.version}
+                      </span>
+                      <button
+                        onClick={() => setConfig(prev => ({
+                          ...prev,
+                          prompts: prev.prompts.filter(item => item.id !== pr.id)
+                        }))}
+                        className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
+                        title="Delete prompt"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
                   </div>
 
                   <Textarea
