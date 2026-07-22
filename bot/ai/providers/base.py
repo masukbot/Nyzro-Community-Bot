@@ -103,7 +103,7 @@ class BaseProvider(ABC):
         self.config = config
         self.api_key = config.get("api_key", "")
         self.endpoint = config.get("endpoint", "")
-        self.default_model = config.get("model", "")
+        self.default_model = config.get("default_model") or config.get("model") or ""
         self.organization = config.get("organization")
         self.api_version = config.get("api_version")
         self.custom_headers = config.get("headers", {})
