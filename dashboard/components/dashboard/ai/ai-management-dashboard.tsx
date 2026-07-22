@@ -190,7 +190,7 @@ export function AIManagementDashboard({ initialConfig, guildId, channels }: AIMa
       stats: { ...fallback.stats, ...(cfg.stats || {}) },
       providers: Array.isArray(cfg.providers) ? cfg.providers : fallback.providers,
       models: Array.isArray(cfg.models) ? cfg.models : fallback.models,
-      feature_assignments: Array.isArray(cfg.feature_assignments) ? cfg.feature_assignments : fallback.feature_assignments,
+      feature_assignments: Array.isArray(cfg.feature_assignments) ? fallback.feature_assignments.map(fb => cfg.feature_assignments.find((f: any) => f.feature_key === fb.feature_key) || fb) : fallback.feature_assignments,
       chat_channels: Array.isArray(cfg.chat_channels) ? cfg.chat_channels : [],
       personas: Array.isArray(cfg.personas) ? cfg.personas : fallback.personas,
       moderation_detectors: Array.isArray(cfg.moderation_detectors) ? cfg.moderation_detectors : fallback.moderation_detectors,
