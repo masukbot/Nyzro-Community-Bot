@@ -50,7 +50,8 @@ import threading
 import subprocess
 
 # ── env vars ──────────────────────────────────────────────────────────────────
-TUNNEL_ENABLED = os.getenv("TUNNEL_ENABLED", "true").strip().lower() == "true"
+_ON_RAILWAY = "RAILWAY_SERVICE_NAME" in os.environ or "RAILWAY_PUBLIC_DOMAIN" in os.environ
+TUNNEL_ENABLED = os.getenv("TUNNEL_ENABLED", "true").strip().lower() == "true" and not _ON_RAILWAY
 CF_TUNNEL_TOKEN = os.getenv("CF_TUNNEL_TOKEN", "").strip()   # token from Cloudflare dashboard
 CF_TUNNEL_URL   = os.getenv("CF_TUNNEL_URL", "").strip()     # e.g. https://api.yourdomain.com
 API_PORT        = int(os.getenv("API_PORT", "8000"))
@@ -313,7 +314,10 @@ def start_tunnel() -> None:
     Called from CodeX.py after keep_alive().
     """
     if not TUNNEL_ENABLED:
-        print(f"{_YELLOW}◈ Tunnel: disabled via TUNNEL_ENABLED=false{_RESET}")
+        if _ON_RAILWAY:
+            print(f"{_YELLOW}◈ Tunnel: disabled — Railway provides a public URL automatically{_RESET}")
+        else:
+            print(f"{_YELLOW}◈ Tunnel: disabled via TUNNEL_ENABLED=false{_RESET}")
         return
 
     if not CF_TUNNEL_TOKEN:

@@ -84,6 +84,7 @@ class Giveaway(commands.Cog):
         await self.connection.close()
 
     async def check_for_ended_giveaways(self):
+        await self._ensure_db()
         await self.cursor.execute("SELECT ends_at, guild_id, message_id, host_id, winners, prize, channel_id FROM Giveaway WHERE ends_at <= ?", (datetime.datetime.now().timestamp(),))
         ended_giveaways = await self.cursor.fetchall()
         for giveaway in ended_giveaways:
@@ -149,8 +150,19 @@ class Giveaway(commands.Cog):
             await self.cursor.execute("DELETE FROM Giveaway WHERE message_id = ? AND guild_id = ?", (giveaway[2], giveaway[1]))
             await self.connection.commit()
 
+    async def _ensure_db(self):
+        try:
+            _conn = self.connection
+            if _conn is None:
+                raise ValueError("Connection is None")
+            await _conn.execute("SELECT 1")
+        except (ValueError, sqlite3.ProgrammingError, AttributeError):
+            self.connection = await aiosqlite.connect(db_path)
+            self.cursor = await self.connection.cursor()
+
     @tasks.loop(seconds=5)
     async def GiveawayEnd(self):
+        await self._ensure_db()
         await self.cursor.execute("SELECT ends_at, guild_id, message_id, host_id, winners, prize, channel_id FROM Giveaway WHERE ends_at <= ?", (datetime.datetime.now().timestamp(),))
         ends_raw = await self.cursor.fetchall()
         for giveaway in ends_raw:

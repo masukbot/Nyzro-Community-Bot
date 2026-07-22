@@ -51,9 +51,25 @@ TICKET_LIMIT_PER_USER = 3
 # --- Database Class ---
 class TicketDatabase:
     def __init__(self, path):
-        self.conn = sqlite3.connect(path, check_same_thread=False)
+        self.path = path
+        self.conn = None
+        self._connect()
+
+    def _connect(self):
+        if self.conn is not None:
+            try:
+                self.conn.close()
+            except:
+                pass
+        self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
+
+    def _ensure_open(self):
+        try:
+            self.conn.execute("SELECT 1")
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            self._connect()
 
     def _create_tables(self):
         with self.conn:
@@ -63,13 +79,21 @@ class TicketDatabase:
             self.conn.execute("CREATE TABLE IF NOT EXISTS user_ticket_counts (guild_id INTEGER, user_id INTEGER, ticket_count INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id))")
 
     def execute(self, q, p=()):
+        self._ensure_open()
         with self.conn: return self.conn.execute(q, p)
     def fetchone(self, q, p=()):
+        self._ensure_open()
         cur = self.conn.cursor(); cur.execute(q, p); return cur.fetchone()
     def fetchall(self, q, p=()):
+        self._ensure_open()
         cur = self.conn.cursor(); cur.execute(q, p); return cur.fetchall()
     def close(self):
-        if self.conn: self.conn.close()
+        if self.conn:
+            try:
+                self.conn.close()
+            except:
+                pass
+            self.conn = None
 
 # --- Utility Functions ---
 async def get_or_create_log_channel(db, guild):

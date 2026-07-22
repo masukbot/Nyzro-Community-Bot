@@ -191,196 +191,66 @@ from .moderation.snipe import Snipe
 
 from utils.config import BotName
 
+async def _safe_add_cog(bot, cog_class, *args, **kwargs):
+    try:
+        await bot.add_cog(cog_class(*args, **kwargs))
+        return True
+    except Exception as e:
+        print(f"{Fore.YELLOW}{Style.BRIGHT}Cog '{cog_class.__name__}' failed to load: {e}{Fore.RESET}")
+        return False
+
 async def setup(bot: nyzro):
-  cogs_to_load = [
-        Help, General, Moderation, Automod, Welcomer, Fun, Games, Extra,
-        Voice, Owner, Customrole, afk, Embed, Media, Ignore, TicketCog, Logging,
-        Invcrole, Steal, Timer,
-        Blacklist, Block, Nightmode, Badges, Antinuke, Whitelist, 
-        Unwhitelist, Extraowner, Blackjack, Slots, Guild, Errors, Autorole2, Autorole, greet, AutoResponder,
-        Mention, AutoRole, React, AntiMemberUpdate, AntiBan, AntiBotAdd,
-        AntiChannelCreate, AntiChannelDelete, AntiChannelUpdate, AntiEveryone, AntiGuildUpdate,
-        AntiIntegration, AntiKick, AntiPrune, AntiRoleCreate, AntiRoleDelete,
-        AntiRoleUpdate, AntiWebhookUpdate, AntiWebhookCreate, 
-        AntiWebhookDelete, AntiSpam, AntiCaps, AntiLink, AntiInvite, AntiMassMention, Stats, Status, NoPrefix, FilterCog, AutoReaction, AutoReactListener, Ban, Unban, Mute, Unmute, Lock, Unlock, Hide, Unhide, Kick, Warn, Role, Message, Moderation, TopCheck, Snipe, Global, QR, VanityRoles, ReactionRoles, Messages, TranslateCog, FastGreet, Jail, inviteTracker,Counting,AI
-    ]
+  loaded = 0
+  failed = 0
 
+  for cog_cls, args_list in [
+    (Help, [bot]), (General, [bot]), (Music, [bot]), (Automod, [bot]),
+    (Welcomer, [bot]), (Fun, [bot]), (Tracking, [bot]), (Games, [bot]),
+    (Extra, [bot]), (Voice, [bot]), (Owner, [bot]), (Customrole, [bot]),
+    (afk, [bot]), (Embed, [bot]), (Media, [bot]), (Ignore, [bot]),
+    (Invcrole, [bot]), (Giveaway, [bot]), (Steal, [bot]), (Booster, [bot]),
+    (Timer, [bot]), (Blacklist, [bot]), (Block, [bot]), (Nightmode, [bot]),
+    (Badges, [bot]), (Antinuke, [bot]), (Whitelist, [bot]), (Unwhitelist, [bot]),
+    (Extraowner, [bot]), (Slots, [bot]), (Blackjack, [bot]), (Stats, [bot]),
+    (Emergency, [bot]), (Status, [bot]), (NoPrefix, [bot]), (FilterCog, [bot]),
+    (Global, [bot]), (TicketCog, [bot]), (Logging, [bot]), (QR, [bot]),
+    (VanityRoles, [bot]), (ReactionRoles, [bot]), (Messages, [bot]),
+    (TranslateCog, [bot]), (FastGreet, [bot]), (Jail, [bot]), (JoinToCreate, [bot]),
+    (AI, [bot]), (StaffDMCog, [bot]), (Leveling, [bot]), (StickyMessage, [bot]),
+    (Verification, [bot]), (Minecraft, [bot]), (encryption, [bot]),
+    (calculator, [bot]), (joindm, [bot]), (Birthdays, [bot]), (Nitro, [bot]),
+    (ImageCommands, [bot]), (Youtube, [bot]), (Starboard, [bot]), (VoiceLog, [bot]),
+    (Economy, [bot]), (CustomCommands, [bot]), (Premium, [bot]),
+    (_antinuke, [bot]), (_extra, [bot]), (_general, [bot]), (_automod, [bot]),
+    (_moderation, [bot]), (_music, [bot]), (_fun, [bot]), (_games, [bot]),
+    (_ignore, [bot]), (_server, [bot]), (_voice, [bot]), (_welcome, [bot]),
+    (_giveaway, [bot]), (_ticket, [bot]), (_logging, [bot]), (_vanity, [bot]),
+    (inviteTracker, [bot]), (Counting, [bot]), (_Counting, [bot]), (_J2C, [bot]),
+    (_ai, [bot]), (__boost, [bot]), (_leveling, [bot]), (_sticky, [bot]),
+    (_verify, [bot]), (_encrypt, [bot]), (_mc, [bot]), (_joindm, [bot]),
+    (_birth, [bot]),
+    (Guild, [bot]), (Errors, [bot]), (Autorole2, [bot]), (Autorole, [bot]),
+    (greet, [bot]), (AutoResponder, [bot]), (Mention, [bot]), (AutoRole, [bot]),
+    (React, [bot]), (AutoReaction, [bot]), (AutoReactListener, [bot]),
+    (NotifCommands, [bot]), (StickyMessageListener, [bot]), (AIResponses, [bot]),
+    (AntiMemberUpdate, [bot]), (AntiBan, [bot]), (AntiBotAdd, [bot]),
+    (AntiChannelCreate, [bot]), (AntiChannelDelete, [bot]), (AntiChannelUpdate, [bot]),
+    (AntiEveryone, [bot]), (AntiGuildUpdate, [bot]), (AntiIntegration, [bot]),
+    (AntiKick, [bot]), (AntiPrune, [bot]), (AntiRoleCreate, [bot]),
+    (AntiRoleDelete, [bot]), (AntiRoleUpdate, [bot]), (AntiWebhookUpdate, [bot]),
+    (AntiWebhookCreate, [bot]), (AntiWebhookDelete, [bot]),
+    (AntiSpam, [bot]), (AntiCaps, [bot]), (AntiInvite, [bot]), (AntiLink, [bot]),
+    (AntiMassMention, [bot]), (AntiEmojiSpam, [bot]),
+    (Ban, [bot]), (Unban, [bot]), (Mute, [bot]), (Unmute, [bot]),
+    (Lock, [bot]), (Unlock, [bot]), (Hide, [bot]), (Unhide, [bot]),
+    (Kick, [bot]), (Warn, [bot]), (Role, [bot]), (Message, [bot]),
+    (Moderation, [bot]), (TopCheck, [bot]), (Snipe, [bot])
+  ]:
+    if await _safe_add_cog(bot, cog_cls, *args_list):
+        loaded += 1
+    else:
+        failed += 1
 
-  await bot.add_cog(Help(bot))
-  await bot.add_cog(General(bot))
-  await bot.add_cog(Music(bot))
-  await bot.add_cog(Automod(bot))
-  await bot.add_cog(Welcomer(bot))
-  await bot.add_cog(Fun(bot))
-  await bot.add_cog(Tracking(bot))
-  await bot.add_cog(Games(bot))
-  await bot.add_cog(Extra(bot))
-  await bot.add_cog(Voice(bot))
-  await bot.add_cog(Owner(bot))
-  await bot.add_cog(Customrole(bot))
-  await bot.add_cog(afk(bot))
-  await bot.add_cog(Embed(bot))
-  await bot.add_cog(Media(bot))
-  await bot.add_cog(Ignore(bot))
-  await bot.add_cog(Invcrole(bot))
-  await bot.add_cog(Giveaway(bot))
-  await bot.add_cog(Steal(bot))
-  await bot.add_cog(Booster(bot))
-  await bot.add_cog(Timer(bot))
-  await bot.add_cog(Blacklist(bot))
-  await bot.add_cog(Block(bot))
-  await bot.add_cog(Nightmode(bot))
-  await bot.add_cog(Badges(bot))
-  await bot.add_cog(Antinuke(bot))
-  await bot.add_cog(Whitelist(bot))
-  await bot.add_cog(Unwhitelist(bot))
-  await bot.add_cog(Extraowner(bot))
-  await bot.add_cog(Slots(bot))
-  await bot.add_cog(Blackjack(bot))
-  await bot.add_cog(Stats(bot))
-  await bot.add_cog(Emergency(bot))
-  await bot.add_cog(Status(bot))
-  await bot.add_cog(NoPrefix(bot))
-  await bot.add_cog(FilterCog(bot))
-  await bot.add_cog(Global(bot))
- # await bot.add_cog(Map(bot))
-  await bot.add_cog(TicketCog(bot))
-  await bot.add_cog(Logging(bot))
-  await bot.add_cog(QR(bot))
-  await bot.add_cog(VanityRoles(bot))
-  await bot.add_cog(ReactionRoles(bot))
-  await bot.add_cog(Messages(bot))
-  await bot.add_cog(TranslateCog(bot))
-  await bot.add_cog(FastGreet(bot))
-  await bot.add_cog(Jail(bot))
-  await bot.add_cog(JoinToCreate(bot))
-  await bot.add_cog(AI(bot))
-  await bot.add_cog(StaffDMCog(bot))
-  await bot.add_cog(Leveling(bot))
-  await bot.add_cog(StickyMessage(bot))
-  await bot.add_cog(Verification(bot))
-  await bot.add_cog(Minecraft(bot))
-  await bot.add_cog(encryption(bot))
-  await bot.add_cog(calculator(bot))
-  await bot.add_cog(joindm(bot))
-  await bot.add_cog(Birthdays(bot))
-  await bot.add_cog(Nitro(bot))
-  await bot.add_cog(ImageCommands(bot))
-  await bot.add_cog(Youtube(bot))
-  await bot.add_cog(Starboard(bot))
-  await bot.add_cog(VoiceLog(bot))
-  await bot.add_cog(Economy(bot))
-  await bot.add_cog(CustomCommands(bot))
-  await bot.add_cog(Premium(bot))
-
-  await bot.add_cog(_antinuke(bot))
-  await bot.add_cog(_extra(bot))
-  await bot.add_cog(_general(bot))
-  await bot.add_cog(_automod(bot))  
-  await bot.add_cog(_moderation(bot))
-  await bot.add_cog(_music(bot))
-  await bot.add_cog(_fun(bot))
-  await bot.add_cog(_games(bot))
-  await bot.add_cog(_ignore(bot))
-  await bot.add_cog(_server(bot))
-  await bot.add_cog(_voice(bot))   
-  await bot.add_cog(_welcome(bot))
-  await bot.add_cog(_giveaway(bot))
-  await bot.add_cog(_ticket(bot))
-  await bot.add_cog(_logging(bot))
-  await bot.add_cog(_vanity(bot))
-  await bot.add_cog(inviteTracker(bot))
-  await bot.add_cog(Counting(bot))
-  await bot.add_cog(_Counting(bot))
-  await bot.add_cog(_J2C(bot))
-  await bot.add_cog(_ai(bot))
-  await bot.add_cog(__boost(bot))
-  await bot.add_cog(_leveling(bot))
-  await bot.add_cog(_sticky(bot))
-  await bot.add_cog(_verify(bot))
-  await bot.add_cog(_encrypt(bot))
-  await bot.add_cog(_mc(bot))
-  await bot.add_cog(_joindm(bot))
-  await bot.add_cog(_birth(bot))
-
-
-  
-  #await bot.add_cog(AutoBlacklist(bot))
-  await bot.add_cog(Guild(bot))
-  await bot.add_cog(Errors(bot))
-  await bot.add_cog(Autorole2(bot))
-  await bot.add_cog(Autorole(bot))
-  await bot.add_cog(greet(bot))
-  await bot.add_cog(AutoResponder(bot))
-  await bot.add_cog(Mention(bot))
-  await bot.add_cog(AutoRole(bot))
-  await bot.add_cog(React(bot))
-  await bot.add_cog(AutoReaction(bot))
-  await bot.add_cog(AutoReactListener(bot))
-  await bot.add_cog(NotifCommands(bot))
-  await bot.add_cog(StickyMessageListener(bot))
-  await bot.add_cog(AIResponses(bot))
-
-
-  await bot.add_cog(AntiMemberUpdate(bot))
-  await bot.add_cog(AntiBan(bot))
-  await bot.add_cog(AntiBotAdd(bot))
-  await bot.add_cog(AntiChannelCreate(bot))
-  await bot.add_cog(AntiChannelDelete(bot))
-  await bot.add_cog(AntiChannelUpdate(bot))
-  await bot.add_cog(AntiEveryone(bot))
-  await bot.add_cog(AntiGuildUpdate(bot))
-  await bot.add_cog(AntiIntegration(bot))
-  await bot.add_cog(AntiKick(bot))
-  await bot.add_cog(AntiPrune(bot))
-  await bot.add_cog(AntiRoleCreate(bot))
-  await bot.add_cog(AntiRoleDelete(bot))
-  await bot.add_cog(AntiRoleUpdate(bot))
-  await bot.add_cog(AntiWebhookUpdate(bot))
-  await bot.add_cog(AntiWebhookCreate(bot))
-  await bot.add_cog(AntiWebhookDelete(bot))
-
-
-#Extra Optional Events 
-
-  #await bot.add_cog(AntiEmojiCreate(bot))
-  #await bot.add_cog(AntiEmojiDelete(bot))
-  #await bot.add_cog(AntiEmojiUpdate(bot))
-  #await bot.add_cog(AntiSticker(bot))
-  #await bot.add_cog(AntiUnban(bot))
-
-
-  await bot.add_cog(AntiSpam(bot))
-  await bot.add_cog(AntiCaps(bot))
-  await bot.add_cog(AntiInvite(bot))
-  await bot.add_cog(AntiLink(bot))
-  await bot.add_cog(AntiMassMention(bot))
-  await bot.add_cog(AntiEmojiSpam(bot))
-
-
-
-
-
-
-
-  await bot.add_cog(Ban(bot))
-  await bot.add_cog(Unban(bot))
-  await bot.add_cog(Mute(bot))
-  await bot.add_cog(Unmute(bot))
-  await bot.add_cog(Lock(bot))
-  await bot.add_cog(Unlock(bot))
-  await bot.add_cog(Hide(bot))
-  await bot.add_cog(Unhide(bot))
-  await bot.add_cog(Kick(bot))
-  await bot.add_cog(Warn(bot))
-  await bot.add_cog(Role(bot))
-  await bot.add_cog(Message(bot))
-  await bot.add_cog(Moderation(bot))
-  await bot.add_cog(TopCheck(bot))
-  await bot.add_cog(Snipe(bot))
-  
-
-
-  for cog in cogs_to_load:
-    print(Fore.RED + Style.BRIGHT + f"Loaded cog: {cog.__name__}")
-  print(Fore.RED + Style.BRIGHT + f"All {BotName} Cogs loaded successfully.")
+  print(Fore.RED + Style.BRIGHT + f"Loaded {loaded} cogs | Failed: {failed}")
+  if failed == 0:
+    print(Fore.RED + Style.BRIGHT + f"All {BotName} Cogs loaded successfully.")
