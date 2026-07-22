@@ -110,15 +110,11 @@ export function TicketsForm({ initialConfig, guildId, channels, roles }: Tickets
 
   const handleSaveCategory = () => {
     if (!editingCategory) return;
-    const cat = {
-      ...editingCategory.data,
-      discord_category_id: editingCategory.data.discord_category_id ? Number(editingCategory.data.discord_category_id) : null,
-    };
     const newCategories = [...config.categories];
     if (isAdding) {
-      newCategories.push(cat);
+      newCategories.push(editingCategory.data);
     } else {
-      newCategories[editingCategory.index] = cat;
+      newCategories[editingCategory.index] = editingCategory.data;
     }
     handleUpdate({ categories: newCategories });
   };
@@ -136,9 +132,9 @@ export function TicketsForm({ initialConfig, guildId, channels, roles }: Tickets
 
   const handleSaveGlobal = () => {
     handleUpdate({
-      panel_channel: config.panel_channel ? Number(config.panel_channel) : null,
-      logging_channel: config.logging_channel ? Number(config.logging_channel) : null,
-      closed_category: config.closed_category ? Number(config.closed_category) : null,
+      panel_channel: config.panel_channel || null,
+      logging_channel: config.logging_channel || null,
+      closed_category: config.closed_category || null,
       panel_type: config.panel_type,
       staff_roles: config.staff_roles
     });
@@ -234,8 +230,8 @@ export function TicketsForm({ initialConfig, guildId, channels, roles }: Tickets
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Ticket Category</label>
                     <Select
-                      value={String(editingCategory.data.discord_category_id || "")}
-                      onValueChange={(val) => setEditingCategory({...editingCategory, data: {...editingCategory.data, discord_category_id: val || null}})}
+                      value={String(editingCategory.data.discord_category_id ?? "")}
+                      onValueChange={(val) => setEditingCategory({...editingCategory, data: {...editingCategory.data, discord_category_id: val ? Number(val) : null}})}
                     >
                       <SelectTrigger className="bg-slate-900/50 border-slate-800">
                         <SelectValue placeholder="Where created tickets go" />
@@ -345,8 +341,8 @@ export function TicketsForm({ initialConfig, guildId, channels, roles }: Tickets
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Panel Channel</label>
                 <Select
-                  value={String(config.panel_channel || "")}
-                  onValueChange={(val) => setConfig({...config, panel_channel: val || null})}
+                  value={String(config.panel_channel ?? "")}
+                  onValueChange={(val) => setConfig({...config, panel_channel: val ? Number(val) : null})}
                 >
                   <SelectTrigger className="bg-slate-900/50 border-slate-800">
                     <SelectValue placeholder="Select the panel channel" />
@@ -361,8 +357,8 @@ export function TicketsForm({ initialConfig, guildId, channels, roles }: Tickets
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Logging Channel</label>
                 <Select
-                  value={String(config.logging_channel || "")}
-                  onValueChange={(val) => setConfig({...config, logging_channel: val || null})}
+                  value={String(config.logging_channel ?? "")}
+                  onValueChange={(val) => setConfig({...config, logging_channel: val ? Number(val) : null})}
                 >
                   <SelectTrigger className="bg-slate-900/50 border-slate-800">
                     <SelectValue placeholder="Where transcripts go" />
@@ -377,8 +373,8 @@ export function TicketsForm({ initialConfig, guildId, channels, roles }: Tickets
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase text-slate-500 tracking-widest">Closed Tickets Category</label>
                 <Select
-                  value={String(config.closed_category || "")}
-                  onValueChange={(val) => setConfig({...config, closed_category: val || null})}
+                  value={String(config.closed_category ?? "")}
+                  onValueChange={(val) => setConfig({...config, closed_category: val ? Number(val) : null})}
                 >
                   <SelectTrigger className="bg-slate-900/50 border-slate-800">
                     <SelectValue placeholder="Archive closed tickets here" />

@@ -69,7 +69,7 @@ export interface TicketCategory {
   emoji: string | null;
   staff_roles: number[];
   button_style?: number;
-  discord_category_id?: string | null;
+  discord_category_id?: number | null;
 }
 
 export interface TicketEmbed {
@@ -82,10 +82,10 @@ export interface TicketEmbed {
 
 export interface TicketConfig {
   guild_id: string;
-  panel_channel: string | null;
-  panel_message: string | null;
-  logging_channel?: string | null;
-  closed_category?: string | null;
+  panel_channel: number | null;
+  panel_message: number | null;
+  logging_channel?: number | null;
+  closed_category?: number | null;
   panel_type?: string;
   embed: TicketEmbed;
   categories: TicketCategory[];
