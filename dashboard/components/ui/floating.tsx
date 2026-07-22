@@ -103,18 +103,18 @@ export function FloatingLayer({
   zIndex = 50,
   className,
 }: FloatingLayerProps) {
-  const floatRef = React.useRef<HTMLDivElement | null>(null)
+  const floatRef = React.useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = React.useState({ top: 0, left: 0, width: 0 })
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
-  const applyPosition = React.useCallback(() => {
-    const node = floatRef.current
-    if (!node || !triggerRef.current) return
+  const position = React.useCallback(() => {
+    if (!triggerRef.current || !floatRef.current) return
     const tRect = triggerRef.current.getBoundingClientRect()
-    const fRect = node.getBoundingClientRect()
+    const fRect = floatRef.current.getBoundingClientRect()
     const { side, align } = getPlacement(placement)
 
     let w = matchTriggerWidth ? tRect.width : fRect.width
@@ -122,43 +122,29 @@ export function FloatingLayer({
     if (maxWidth !== undefined) w = Math.min(w, typeof maxWidth === "number" ? maxWidth : Infinity)
 
     const { top, left } = computeCoords(tRect, { ...fRect, width: w }, side, align, sideOffset, window.innerWidth, window.innerHeight, autoFlip)
-
-    node.style.top = top + "px"
-    node.style.left = left + "px"
-    node.style.width = w ? w + "px" : ""
-    node.style.visibility = ""
-    node.style.pointerEvents = ""
+    setCoords({ top, left, width: w })
   }, [placement, sideOffset, autoFlip, matchTriggerWidth, minWidth, maxWidth, triggerRef])
-
-  const positionRef = React.useRef(applyPosition)
-  positionRef.current = applyPosition
-
-  const floatCallbackRef = React.useCallback((node: HTMLDivElement | null) => {
-    floatRef.current = node
-    if (!node || !open) return
-    positionRef.current()
-  }, [open])
 
   React.useEffect(() => {
     if (!open) return
-    const handler = () => positionRef.current()
-    handler()
-    window.addEventListener("resize", handler)
-    window.addEventListener("scroll", handler, true)
-    const ro = new ResizeObserver(handler)
-    if (triggerRef.current) ro.observe(triggerRef.current)
+    position()
+
+    const handleResize = () => position()
+    window.addEventListener("resize", handleResize)
+    window.addEventListener("scroll", position, true)
+    const interval = setInterval(position, 250)
+
     return () => {
-      window.removeEventListener("resize", handler)
-      window.removeEventListener("scroll", handler, true)
-      ro.disconnect()
+      window.removeEventListener("resize", handleResize)
+      window.removeEventListener("scroll", position, true)
+      clearInterval(interval)
     }
-  }, [open, triggerRef])
+  }, [open, position])
 
   React.useEffect(() => {
     if (!open) return
     const handleClick = (e: MouseEvent) => {
-      const node = floatRef.current
-      if (node && !node.contains(e.target as Node) && triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+      if (floatRef.current && !floatRef.current.contains(e.target as Node) && triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
         onClose()
       }
     }
@@ -182,15 +168,17 @@ export function FloatingLayer({
 
   return createPortal(
     <div
-      ref={floatCallbackRef}
+      ref={floatRef}
       style={{
         position: "fixed",
-        visibility: "hidden",
-        pointerEvents: "none",
+        top: coords.top,
+        left: coords.left,
+        width: coords.width || undefined,
         zIndex,
       }}
       className={cn(
         "rounded-xl border border-slate-800 bg-[#141B2D] p-1 shadow-2xl",
+        "animate-in fade-in zoom-in-95 duration-200",
         anchorTop
           ? side === "bottom" ? "slide-in-from-top-1" : "slide-in-from-bottom-1"
           : side === "right" ? "slide-in-from-left-1" : "slide-in-from-right-1",
