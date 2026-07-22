@@ -1768,6 +1768,7 @@ Support server: https://discord.gg/codexdev"""
             cursor = await db.execute("SELECT ai_enabled, config_json FROM ai_guild_configs WHERE guild_id = ? OR guild_id = ?", (guild_id, str(guild_id)))
             row = await cursor.fetchone()
             if not row or not row[1]:
+                logger.info(f"[AI on_message] Guild {guild_id}: no DB row or empty config_json — silent exit")
                 return
 
             data = json.loads(row[1])
@@ -1781,12 +1782,14 @@ Support server: https://discord.gg/codexdev"""
             ), None)
 
             if not matching_ch:
+                logger.info(f"[AI on_message] Guild {guild_id} channel {channel_id_str}: no matching channel in config (channels saved: {[c.get('channel_id') for c in chat_channels]})")
                 return
 
             mode = matching_ch.get("mode", "reply_all")
             bot_mentioned = (self.bot.user in message.mentions) if self.bot.user else False
 
             if mode == "mention_only" and not bot_mentioned:
+                logger.info(f"[AI on_message] Guild {guild_id}: mode=mention_only and bot not mentioned — silent exit")
                 return
 
             prompt = message.clean_content or message.content or ""
@@ -1797,6 +1800,7 @@ Support server: https://discord.gg/codexdev"""
                 prompt = "Please analyze the uploaded content."
 
             if not prompt:
+                logger.info(f"[AI on_message] Guild {guild_id}: empty prompt — silent exit")
                 return
 
             system_prompt = matching_ch.get("system_prompt") or "You are Nyzro AI assistant. Help community members politely and concisely."
@@ -1813,6 +1817,7 @@ Support server: https://discord.gg/codexdev"""
             # Build message list
             messages = [{"role": "user", "content": prompt}]
 
+            logger.info(f"[AI on_message] Guild {guild_id}: executing chat_ai (mode={mode}, model_override={model_override})")
             async with message.channel.typing():
                 try:
                     response = await manager.execute_feature(
@@ -1824,6 +1829,7 @@ Support server: https://discord.gg/codexdev"""
                         max_tokens=800,
                     )
                     await message.reply(response.content[:2000], mention_author=False)
+                    logger.info(f"[AI on_message] Guild {guild_id}: reply sent successfully")
                 except ValueError as ve:
                     err_msg = str(ve)
                     logger.warning(f"AI chat config error for guild {guild_id}: {err_msg}")
@@ -1835,6 +1841,7 @@ Support server: https://discord.gg/codexdev"""
                         await message.reply("⚠️ The AI provider for Chat AI is not configured. Add a provider in the dashboard.", mention_author=False)
                     else:
                         await message.reply(f"⚠️ AI configuration error: {err_msg[:200]}", mention_author=False)
+                    logger.info(f"[AI on_message] Guild {guild_id}: replied with ValueError message")
                 except Exception as e:
                     logger.error(f"AI chat execution error for guild {guild_id}: {e}")
                     await message.reply(f"⚠️ AI response failed: {str(e)[:200]}", mention_author=False)
