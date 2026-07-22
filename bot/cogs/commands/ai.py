@@ -956,7 +956,6 @@ Support server: https://discord.gg/codexdev"""
         """Summarize text using AI"""
         await ctx .defer ()
 
-
         if ctx .message .reference and not text :
             try :
                 replied_message =await ctx .channel .fetch_message (ctx .message .reference .message_id )
@@ -970,32 +969,68 @@ Support server: https://discord.gg/codexdev"""
             await ctx .send (view=view)
             return 
 
-        prompt =f"Please provide a clear and concise summary of the following text:\n\n{text}"
-
         try :
-            history =[{"role":"user","content":prompt }]
-            summary =await self ._get_groq_response (prompt ,history )
+            from ai.manager import AIManager
+            data = await self._load_ai_config(ctx.guild.id)
+            if data:
+                manager = AIManager()
+                manager.load_from_guild_config(ctx.guild.id, data)
+                summary = await manager.execute_summarization([{"role": "user", "content": text[:3000]}])
+                await manager.close()
+            else:
+                prompt =f"Please provide a clear and concise summary of the following text:\n\n{text}"
+                history =[{"role":"user","content":prompt }]
+                summary =await self ._get_groq_response (prompt ,history )
 
             original_text = text[:512] + "..." if len(text) > 512 else text
-            view = CV2View("📝 Text Summary", summary, f"**Original Text:**\n{original_text}")
+            view = CV2View("📝 Text Summary", summary or "Could not generate summary.", f"**Original Text:**\n{original_text}")
             await ctx .send (view=view)
         except Exception as e :
-            pass 
+            logger.error(f"Summarize error: {e}")
+            await ctx.send("⚠️ Could not generate summary. AI may not be configured.")
 
     @ai .command (name ="ask",description ="Ask the AI a question")
     @app_commands .describe (question ="Question to ask")
+    async def _load_ai_config(self, guild_id: int):
+        """Load guild AI config from DB."""
+        try:
+            from api.db_manager import db_manager
+            db = await db_manager.get_connection('db/ai.db')
+            cursor = await db.execute("SELECT config_json FROM ai_guild_configs WHERE guild_id = ? OR guild_id = ?", (guild_id, str(guild_id)))
+            row = await cursor.fetchone()
+            if row and row[0]:
+                return json.loads(row[0])
+        except Exception as e:
+            logger.error(f"Failed to load AI config for guild {guild_id}: {e}")
+        return None
+
     async def ai_ask (self ,ctx :commands .Context ,*,question :str ):
         """Ask AI a question"""
         await ctx .defer ()
 
         try :
-            history =[{"role":"user","content":question }]
-            answer =await self ._get_groq_response (question ,history )
+            from ai.manager import AIManager
+            data = await self._load_ai_config(ctx.guild.id)
+            if data:
+                manager = AIManager()
+                manager.load_from_guild_config(ctx.guild.id, data)
+                try:
+                    response = await manager.execute_knowledge_query(question)
+                    answer = response
+                except Exception:
+                    messages = [{"role": "user", "content": question}]
+                    response = await manager.execute_feature("chat_ai", messages)
+                    answer = response.content
+                await manager.close()
+            else:
+                history =[{"role":"user","content":question }]
+                answer =await self ._get_groq_response (question ,history )
 
-            view = CV2View("🤖 AI Response", answer, f"**Your Question:**\n{question}")
+            view = CV2View("🤖 AI Response", answer or "No response generated.", f"**Your Question:**\n{question}")
             await ctx .send (view=view)
         except Exception as e :
-            pass 
+            logger.error(f"AI ask error: {e}")
+            await ctx.send("⚠️ AI response failed. Configure AI in the dashboard first.")
 
     @ai .command (name ="fact",description ="Get a random fact or fact on a specific topic")
     @app_commands .describe (topic ="Topic to get a fact about (optional)")
@@ -1282,29 +1317,42 @@ Support server: https://discord.gg/codexdev"""
         await ctx .send (view=view)
 
     async def analyze_image (self ,ctx ,image_url :str ):
-        """Analyze an image using the Gemini Vision API and return CV2View"""
+        """Analyze an image using AIManager vision (fallback to Gemini if no config)"""
         try :
+            image_data = None
+            async with aiohttp .ClientSession ()as session :
+                async with session .get (image_url )as resp :
+                    if resp .status == 200 :
+                        image_data =await resp .read ()
+
+            if not image_data:
+                return CV2View("🖼️ Image Analysis", "Could not download the image.")
+
+            from ai.manager import AIManager
+            data = await self._load_ai_config(ctx.guild.id)
+            if data:
+                manager = AIManager()
+                manager.load_from_guild_config(ctx.guild.id, data)
+                result = await manager.execute_vision_scan(
+                    [image_data],
+                    prompt="What is shown in this image? Provide a detailed description.",
+                    feature_key="image_captioning"
+                )
+                await manager.close()
+                analysis = result.get("analysis", result.get("reason", str(result)))
+                return CV2View("🖼️ Image Analysis", analysis, f"🔗 [View Image]({image_url})", f"Analyzed by **{ctx.author}**")
+
+            # Fallback to Gemini if no AIManager config
             if not self .gemini_api_key :
-                return CV2View("🖼️ Image Analysis", "Gemini API key not configured.")
+                return CV2View("🖼️ Image Analysis", "Gemini API key not configured. Set up AI in the dashboard first.")
 
             genai .configure (api_key =self .gemini_api_key )
             model =genai .GenerativeModel ('gemini-1.5-pro')
-
-            async with aiohttp .ClientSession ()as session :
-                async with session .get (image_url )as resp :
-                    image_data =await resp .read ()
-
-
             try :
                 image =Image .open (io .BytesIO (image_data ))
             except ImportError :
                 return CV2View("🖼️ Image Analysis", "PIL library not available for image processing.")
-
-            prompt ="What is shown in this image? Provide a detailed description."
-
-
-            response =model .generate_content ([prompt ,image ])
-
+            response =model .generate_content (["What is shown in this image? Provide a detailed description.", image ])
             return CV2View("🖼️ Image Analysis", response.text, f"🔗 [View Image]({image_url})", f"Analyzed by **{ctx.author}**")
         except Exception as e :
             logger .error (f"Error analyzing image: {e}")

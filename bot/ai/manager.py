@@ -17,6 +17,7 @@ Master AIManager Orchestrator — dynamically loads per-guild AI config.
 """
 
 from __future__ import annotations
+import json
 import logging
 from typing import Dict, List, Any, Optional
 from ai.models import ModelRegistry, ModelDefinition
@@ -26,6 +27,76 @@ from ai.providers.base import BaseProvider, AIRequest, AIResponse
 from ai.providers.builtins import get_provider_class
 
 logger = logging.getLogger("ai.manager")
+
+# ── Feature-specific system prompts ──────────────────────────────────────────
+FEATURE_SYSTEM_PROMPTS: Dict[str, str] = {
+    "moderation_ai": (
+        "You are a content moderation AI. Analyze the user message for: "
+        "hate speech, harassment, toxicity, NSFW content, threats, and spam. "
+        "Respond ONLY in valid JSON format with no markdown or extra text:\n"
+        '{"flagged": true/false, "categories": ["hate","harassment","toxic","nsfw","threat","spam"], '
+        '"severity": "none"|"low"|"medium"|"high"|"critical", "reason": "brief reason"}'
+    ),
+    "auto_moderation": (
+        "You are a fast auto-moderation AI. Evaluate the message for rule violations. "
+        "Respond ONLY in valid JSON:\n"
+        '{"action": "allow"|"warn"|"delete"|"timeout", "confidence": 0-100, "reason": "brief reason"}'
+    ),
+    "message_classification": (
+        "You are a message classifier. Categorize the user message into one of: "
+        "support, spam, chat, feedback, report, other. "
+        "Respond ONLY in valid JSON:\n"
+        '{"category": "support"|"spam"|"chat"|"feedback"|"report"|"other", "confidence": 0-100, "summary": "brief"}'
+    ),
+    "spam_detection": (
+        "You are a spam detection AI. Check if the message is spam, mass mention, "
+        "repetitive content, or advertisement. Respond ONLY in valid JSON:\n"
+        '{"is_spam": true/false, "type": "mass_mention"|"repetitive"|"ad"|"phishing"|"none", '
+        '"confidence": 0-100, "reason": "brief explanation"}'
+    ),
+    "toxicity_detection": (
+        "You are a toxicity analyzer. Evaluate the message for hostility, profanity, "
+        "and harassment. Respond ONLY in valid JSON:\n"
+        '{"is_toxic": true/false, "toxicity_score": 0-100, '
+        '"categories": ["profanity","threat","harassment","hostility"], '
+        '"reason": "brief explanation"}'
+    ),
+    "scam_image_detection": (
+        "You are a security AI specialized in scanning images for scams. "
+        "Analyze the image for: QR code scams, fake nitro giveaways, fake gift cards, "
+        "phishing attempts, and fraudulent content. "
+        "Respond ONLY in valid JSON:\n"
+        '{"is_flagged": true/false, "category": "Clean"|"QR_Scam"|"Fake_Nitro"|"Fake_GiftCard"|"Phishing"|"Other", '
+        '"confidence": 0-100, "reason": "brief description of what was detected"}'
+    ),
+    "nsfw_detection": (
+        "You are an NSFW content detector. Analyze the image for explicit adult content. "
+        "Respond ONLY in valid JSON:\n"
+        '{"is_nsfw": true/false, "nsfw_score": 0-100, "categories": ["sexual","gore","suggestive","none"], "reason": "brief"}'
+    ),
+    "image_captioning": (
+        "You are an image captioning AI. Describe what you see in the image in detail. "
+        "Be descriptive but concise. Focus on: objects, people, text, actions, scene."
+    ),
+    "ocr": (
+        "You are an OCR (Optical Character Recognition) AI. Extract all text visible in the image. "
+        "Preserve formatting where possible. If no text is found, say 'No text detected in this image.'"
+    ),
+    "translation": (
+        "You are a professional translator. Translate the user's message to the target language. "
+        "Respond with ONLY the translated text, no explanations or notes. "
+        "If the text is already in the target language, respond with the original text."
+    ),
+    "summarization": (
+        "You are a summarization AI. Provide a concise summary of the conversation or text. "
+        "Focus on key points, decisions, and action items. Keep it under 200 words."
+    ),
+    "knowledge_assistant": (
+        "You are a knowledgeable assistant for a Discord community server. "
+        "Answer questions based on general knowledge and common server setups. "
+        "Be helpful, accurate, and concise."
+    ),
+}
 
 
 class AIManager:
@@ -166,6 +237,147 @@ class AIManager:
             return res
 
         return await self.failover.execute_with_failover(dispatch, primary_provider_id)
+
+    async def execute_feature_typed(
+        self,
+        feature_key: str,
+        messages: List[Dict[str, str]],
+        **kwargs
+    ) -> AIResponse:
+        """
+        Execute a feature with the correct system prompt based on its category.
+        Automatically sets the right system prompt for moderation/vision/utility features.
+        """
+        feature = self.features.get(feature_key)
+        if not feature:
+            raise ValueError(f"Feature '{feature_key}' not found")
+
+        if not kwargs.get("system_prompt") and feature_key in FEATURE_SYSTEM_PROMPTS:
+            kwargs["system_prompt"] = FEATURE_SYSTEM_PROMPTS[feature_key]
+
+        return await self.execute_feature(feature_key, messages, **kwargs)
+
+    async def execute_moderation(
+        self,
+        text: str,
+        feature_key: str = "moderation_ai",
+    ) -> Dict[str, Any]:
+        """
+        Execute content moderation on text. Returns structured JSON result.
+        Falls back to safe defaults if parsing fails.
+        """
+        messages = [{"role": "user", "content": f"Analyze this message: {text[:2000]}"}]
+        try:
+            response = await self.execute_feature_typed(feature_key, messages)
+            parsed = json.loads(response.content.strip().strip("```json").strip("```").strip())
+            return parsed
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Moderation JSON parse failed for {feature_key}: {e}")
+            return {
+                "flagged": False,
+                "action": "allow",
+                "is_spam": False,
+                "is_toxic": False,
+                "category": "unknown",
+                "confidence": 0,
+                "severity": "none",
+                "reason": "Could not parse AI response"
+            }
+
+    async def execute_vision_scan(
+        self,
+        images: List[bytes],
+        prompt: str = "",
+        feature_key: str = "scam_image_detection",
+    ) -> Dict[str, Any]:
+        """
+        Execute vision/image scanning on attachments.
+        Returns structured JSON or default safe result.
+        """
+        if not images:
+            return {"is_flagged": False, "category": "Clean", "confidence": 100, "reason": "No images to scan"}
+
+        feature = self.features.get(feature_key)
+        model_def = None
+        if feature:
+            model_def = self.models.get(feature.assigned_model_id)
+
+        user_content = prompt or "Analyze this image for security threats and policy violations."
+        messages = [{"role": "user", "content": user_content}]
+
+        try:
+            response = await self.execute_feature_typed(
+                feature_key, messages, images=images,
+            )
+            raw = response.content.strip().strip("```json").strip("```").strip()
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return {"is_flagged": False, "category": "Clean", "confidence": 50, "analysis": raw[:500]}
+        except Exception as e:
+            logger.error(f"Vision scan failed for {feature_key}: {e}")
+            return {"is_flagged": False, "category": "Clean", "confidence": 99, "reason": f"Scan error: {str(e)[:100]}"}
+
+    async def execute_translation(
+        self,
+        text: str,
+        target_language: str = "English",
+        feature_key: str = "translation",
+    ) -> str:
+        """Execute translation of text to target language."""
+        messages = [{"role": "user", "content": f"Translate this to {target_language}: {text[:2000]}"}]
+        try:
+            response = await self.execute_feature_typed(feature_key, messages)
+            return response.content.strip()
+        except Exception as e:
+            logger.error(f"Translation failed: {e}")
+            return text
+
+    async def execute_summarization(
+        self,
+        conversation: List[Dict[str, str]],
+        feature_key: str = "summarization",
+    ) -> str:
+        """Execute summarization of conversation history."""
+        messages = conversation[-10:] if len(conversation) > 10 else conversation
+        try:
+            response = await self.execute_feature_typed(feature_key, messages)
+            return response.content.strip()
+        except Exception as e:
+            logger.error(f"Summarization failed: {e}")
+            return "Could not generate summary."
+
+    async def execute_classification(
+        self,
+        text: str,
+        feature_key: str = "message_classification",
+    ) -> Dict[str, Any]:
+        """Classify a message into a category."""
+        messages = [{"role": "user", "content": f"Classify this message: {text[:2000]}"}]
+        try:
+            response = await self.execute_feature_typed(feature_key, messages)
+            return json.loads(response.content.strip().strip("```json").strip("```").strip())
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Classification parse failed: {e}")
+            return {"category": "chat", "confidence": 0, "summary": ""}
+
+    async def execute_knowledge_query(
+        self,
+        query: str,
+        context: Optional[str] = None,
+        feature_key: str = "knowledge_assistant",
+    ) -> str:
+        """Answer a knowledge query."""
+        content = query[:2000]
+        if context:
+            content = f"Context: {context[:1000]}\n\nQuestion: {query[:1000]}"
+        messages = [{"role": "user", "content": content}]
+        try:
+            response = await self.execute_feature_typed(feature_key, messages)
+            return response.content.strip()
+        except Exception as e:
+            logger.error(f"Knowledge query failed: {e}")
+            return "Sorry, I couldn't find an answer to that question."
 
     async def close(self):
         """Close all provider sessions."""
