@@ -35,7 +35,6 @@ import {
   Zap,
   Lock,
   Plus,
-  Trash2,
   Save,
   CheckCircle2,
   AlertTriangle,
